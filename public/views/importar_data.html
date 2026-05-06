@@ -1,0 +1,71 @@
+<div class="card border-0 shadow-lg p-4 rounded-4">
+
+  <!-- HEADER -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold text-primary mb-0">
+        <i class="bi bi-cloud-upload fs-5 me-2"></i> Importar Data
+      </h4>
+      <small class="text-muted">Carga masiva de estudiantes desde archivo CSV</small>
+    </div>
+
+    <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+      CSV
+    </span>
+  </div>
+
+  <!-- INFO -->
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="bi bi-info-circle me-2"></i>
+    El archivo debe contener las columnas:
+    <strong>CODIGO, CODIGO HIK, APELLIDOS, NOMBRES, SECCIÓN, CURSO, PARALELO</strong>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div class="row g-4">
+
+    <div class="col-md-7">
+
+      <label class="form-label fw-semibold text-muted">Archivo CSV</label>
+
+      <div class="border border-2 border-dashed rounded-4 p-4 text-center bg-light">
+        <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 42px;"></i>
+
+        <h6 class="fw-bold mt-3 mb-1">Seleccione el archivo de estudiantes</h6>
+        <p class="text-muted mb-3">Solo se permite formato .csv</p>
+
+        <input id="archivoCSV" type="file" class="form-control" accept=".csv">
+      </div>
+
+    </div>
+
+    <div class="col-md-5">
+
+      <div class="card border-0 bg-light p-4 rounded-4 h-100">
+        <h6 class="fw-bold text-primary mb-3">
+          <i class="bi bi-list-check me-1"></i> Resumen
+        </h6>
+
+        <div class="mb-2">
+          <small class="text-muted">Archivo seleccionado</small>
+          <div id="nombreArchivo" class="fw-semibold">Ningún archivo</div>
+        </div>
+
+        <div class="mb-2">
+          <small class="text-muted">Estado</small>
+          <div id="estadoImportacion" class="fw-semibold text-secondary">Pendiente</div>
+        </div>
+
+        <button class="btn btn-primary w-100 mt-4 shadow-sm" onclick="importarCSV()">
+          <i class="bi bi-cloud-upload me-1"></i> Importar estudiantes
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- RESULTADO -->
+  <div id="resultadoImportacion" class="mt-4"></div>
+
+</div>

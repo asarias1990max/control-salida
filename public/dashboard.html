@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: #eef2f7;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .sidebar {
+      width: 260px;
+      height: 100vh;
+      background: #1f3c88;
+      color: white;
+      position: fixed;
+      padding: 20px;
+    }
+
+    .sidebar h4 {
+      font-weight: bold;
+    }
+
+    .sidebar a {
+      display: block;
+      color: white;
+      text-decoration: none;
+      padding: 11px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      transition: 0.3s;
+      font-size: 15px;
+    }
+
+    .sidebar a:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .sidebar .logout {
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .main {
+      margin-left: 260px;
+      padding: 20px;
+    }
+
+    .card {
+      border-radius: 12px;
+      border: none;
+    }
+
+    .topbar {
+      background: white;
+      padding: 12px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-box {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar">
+    <h4><i class="bi bi-shield-lock"></i> Sistema</h4>
+    <hr>
+
+    <a href="#" onclick="mostrarInicio()">
+      <i class="bi bi-house"></i> Inicio
+    </a>
+
+    <div id="menuOpciones"></div>
+
+    <a href="#" class="logout" onclick="logout()">
+      <i class="bi bi-box-arrow-left"></i> Cerrar sesión
+    </a>
+  </div>
+
+  <div class="main">
+
+    <div class="topbar">
+      <h5 id="tituloSeccion">Dashboard</h5>
+      <div id="userName"></div>
+    </div>
+
+    <div id="inicio" class="section-box">
+      <div class="row">
+
+        <div class="col-md-4">
+          <div class="card shadow p-3">
+            <h6>Total Estudiantes</h6>
+            <h3 id="totalEstudiantes">Cargando...</h3>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card shadow p-3">
+            <h6>Salidas Hoy</h6>
+            <h3 id="salidasHoy">Cargando...</h3>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card shadow p-3">
+            <h6>Pendientes</h6>
+            <h3 id="pendientes">Cargando...</h3>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card shadow mt-4 p-3">
+        <h5>Actividad reciente</h5>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Estudiante</th>
+              <th>Tipo</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody id="actividadReciente">
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">
+                Cargando actividad reciente...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="contenidoDinamico"></div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    let estudiantesLowerData = [];
+    let estudiantesMiddleData = [];
+    let estudiantesHighData = [];
+
+    const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+    if (!usuario) {
+      window.location.href = "/";
+    }
+
+    document.getElementById("userName").innerText = "👤 " + usuario.nombre;
+
+    const permisos = usuario.permisos_menu || [];
+    const menu = document.getElementById("menuOpciones");
+
+    const opciones = [
+      {
+        permiso: "salida_lower",
+        texto: "Salida Lower School",
+        icono: "bi-door-open"
+      },
+      {
+        permiso: "salida_middle",
+        texto: "Salida Middle School",
+        icono: "bi-door-open"
+      },
+      {
+        permiso: "salida_high",
+        texto: "Salida High School",
+        icono: "bi-door-open"
+      },
+      {
+        permiso: "importar_data",
+        texto: "Importar Data",
+        icono: "bi-cloud-upload"
+      }
+    ];
+
+    opciones.forEach(op => {
+      if (permisos.includes(op.permiso)) {
+        menu.innerHTML += `
+          <a href="#" onclick="cargarVista('${op.permiso}')">
+            <i class="bi ${op.icono}"></i> ${op.texto}
+          </a>
+        `;
+      }
+    });
+
+    function ocultarSecciones() {
+      document.querySelectorAll(".section-box").forEach(sec => {
+        sec.style.display = "none";
+      });
+
+      document.getElementById("contenidoDinamico").innerHTML = "";
+    }
+
+    async function cargarDatosDashboard() {
+      try {
+        // Cargar total estudiantes
+        const resTotal = await fetch("/api/estudiantes/total");
+        const dataTotal = await resTotal.json();
+        document.getElementById("totalEstudiantes").innerText = dataTotal.ok ? dataTotal.data : "Error";
+
+        // Cargar salidas hoy
+        const resHoy = await fetch("/api/salidas/hoy");
+        const dataHoy = await resHoy.json();
+        document.getElementById("salidasHoy").innerText = dataHoy.ok ? dataHoy.data : "Error";
+
+        // Cargar pendientes
+        const resPend = await fetch("/api/salidas/pendientes");
+        const dataPend = await resPend.json();
+        document.getElementById("pendientes").innerText = dataPend.ok ? dataPend.data : "Error";
+
+        // Cargar actividad reciente
+        const resAct = await fetch("/api/salidas/actividad");
+        const dataAct = await resAct.json();
+        
+        const tbody = document.getElementById("actividadReciente");
+        if (dataAct.ok && dataAct.data.length > 0) {
+          tbody.innerHTML = "";
+          dataAct.data.forEach(item => {
+            const badgeClass = item.tipo === "BUS" ? "bg-primary" : "bg-success";
+            tbody.innerHTML += `
+              <tr>
+                <td>${item.estudiante}</td>
+                <td><span class="badge ${badgeClass}">${item.tipo}</span></td>
+                <td>${item.hora}</td>
+              </tr>
+            `;
+          });
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">
+                No hay actividad reciente
+              </td>
+            </tr>
+          `;
+        }
+
+      } catch (error) {
+        console.error("Error cargando datos del dashboard:", error);
+        document.getElementById("totalEstudiantes").innerText = "Error";
+        document.getElementById("salidasHoy").innerText = "Error";
+        document.getElementById("pendientes").innerText = "Error";
+        document.getElementById("actividadReciente").innerHTML = `
+          <tr>
+            <td colspan="3" class="text-center text-danger py-4">
+              Error cargando actividad reciente
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function mostrarInicio() {
+      ocultarSecciones();
+      document.getElementById("inicio").style.display = "block";
+      document.getElementById("tituloSeccion").innerText = "Dashboard";
+      cargarDatosDashboard();
+    }
+
+    function cargarVista(vista) {
+      ocultarSecciones();
+
+      fetch(`/views/${vista}.html`)
+        .then(res => {
+          if (!res.ok) throw new Error("No se pudo cargar la vista: " + vista);
+          return res.text();
+        })
+        .then(html => {
+          document.getElementById("contenidoDinamico").innerHTML = html;
+
+          const titulos = {
+            salida_lower: "Salida Lower School",
+            salida_middle: "Salida Middle School",
+            salida_high: "Salida High School",
+            importar_data: "Importar Data"
+          };
+
+          document.getElementById("tituloSeccion").innerText = titulos[vista] || "Dashboard";
+
+          if (vista === "salida_lower") {
+            inicializarLower();
+          }
+          if (vista === "salida_middle") {
+            inicializarMiddle();
+          }
+          if (vista === "salida_high") {
+            inicializarHigh();
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById("contenidoDinamico").innerHTML =
+            `<div class="alert alert-danger">Error cargando módulo</div>`;
+        });
+    }
+
+    async function inicializarLower() {
+      const selectCurso = document.getElementById("selectCursoLower");
+      const selectParalelo = document.getElementById("selectParaleloLower");
+      const tabla = document.getElementById("tablaEstudiantesLower");
+
+      if (!selectCurso) return;
+
+      selectCurso.innerHTML = `<option value="">Cargando grados...</option>`;
+
+      if (selectParalelo) {
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+      }
+
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              Seleccione grado y paralelo para cargar estudiantes
+            </td>
+          </tr>
+        `;
+      }
+
+      try {
+        const res = await fetch("/api/estudiantes/lower/cursos");
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando grados");
+        }
+
+        selectCurso.innerHTML = `<option value="">Seleccione grado</option>`;
+
+        data.data.forEach(curso => {
+          selectCurso.innerHTML += `
+            <option value="${curso}">${curso}</option>
+          `;
+        });
+
+      } catch (error) {
+        console.error(error);
+        selectCurso.innerHTML = `<option value="">Error cargando grados</option>`;
+      }
+    }
+
+    async function inicializarMiddle() {
+      const selectCurso = document.getElementById("selectCursoMiddle");
+      const selectParalelo = document.getElementById("selectParaleloMiddle");
+      const tabla = document.getElementById("tablaEstudiantesMiddle");
+
+      if (!selectCurso) return;
+
+      selectCurso.innerHTML = `<option value="">Cargando grados...</option>`;
+
+      if (selectParalelo) {
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+      }
+
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              Seleccione grado y paralelo para cargar estudiantes
+            </td>
+          </tr>
+        `;
+      }
+
+      try {
+        const res = await fetch("/api/estudiantes/middle/cursos");
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando grados");
+        }
+
+        selectCurso.innerHTML = `<option value="">Seleccione grado</option>`;
+
+        data.data.forEach(curso => {
+          selectCurso.innerHTML += `
+            <option value="${curso}">${curso}</option>
+          `;
+        });
+
+      } catch (error) {
+        console.error(error);
+        selectCurso.innerHTML = `<option value="">Error cargando grados</option>`;
+      }
+    }
+
+    async function inicializarHigh() {
+      const selectCurso = document.getElementById("selectCursoHigh");
+      const selectParalelo = document.getElementById("selectParaleloHigh");
+      const tabla = document.getElementById("tablaEstudiantesHigh");
+
+      if (!selectCurso) return;
+
+      selectCurso.innerHTML = `<option value="">Cargando grados...</option>`;
+
+      if (selectParalelo) {
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+      }
+
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              Seleccione grado y paralelo para cargar estudiantes
+            </td>
+          </tr>
+        `;
+      }
+
+      try {
+        const res = await fetch("/api/estudiantes/high/cursos");
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando grados");
+        }
+
+        selectCurso.innerHTML = `<option value="">Seleccione grado</option>`;
+
+        data.data.forEach(curso => {
+          selectCurso.innerHTML += `
+            <option value="${curso}">${curso}</option>
+          `;
+        });
+
+      } catch (error) {
+        console.error(error);
+        selectCurso.innerHTML = `<option value="">Error cargando grados</option>`;
+      }
+    }
+
+    async function cargarParalelosLower() {
+      const curso = document.getElementById("selectCursoLower").value;
+      const selectParalelo = document.getElementById("selectParaleloLower");
+      const tabla = document.getElementById("tablaEstudiantesLower");
+
+      selectParalelo.innerHTML = `<option value="">Cargando paralelos...</option>`;
+
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              Seleccione paralelo para cargar estudiantes
+            </td>
+          </tr>
+        `;
+      }
+
+      if (!curso) {
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/estudiantes/paralelos?curso=${encodeURIComponent(curso)}`);
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando paralelos");
+        }
+
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+        selectParalelo.innerHTML += `<option value="todos">Todos</option>`;
+
+        data.data.forEach(paralelo => {
+          selectParalelo.innerHTML += `
+            <option value="${paralelo}">${paralelo}</option>
+          `;
+        });
+
+      } catch (error) {
+        console.error(error);
+        selectParalelo.innerHTML = `<option value="">Error cargando paralelos</option>`;
+      }
+    }
+
+    async function cargarParalelosMiddle() {
+      const curso = document.getElementById("selectCursoMiddle").value;
+      const selectParalelo = document.getElementById("selectParaleloMiddle");
+      const tabla = document.getElementById("tablaEstudiantesMiddle");
+
+      selectParalelo.innerHTML = `<option value="">Cargando paralelos...</option>`;
+
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              Seleccione paralelo para cargar estudiantes
+            </td>
+          </tr>
+        `;
+      }
+
+      if (!curso) {
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/estudiantes/paralelos?curso=${encodeURIComponent(curso)}`);
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando paralelos");
+        }
+
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+        selectParalelo.innerHTML += `<option value="todos">Todos</option>`;
+
+        data.data.forEach(paralelo => {
+          selectParalelo.innerHTML += `
+            <option value="${paralelo}">${paralelo}</option>
+          `;
+        });
+
+      } catch (error) {
+        console.error(error);
+        selectParalelo.innerHTML = `<option value="">Error cargando paralelos</option>`;
+      }
+    }
+
+    async function cargarParalelosHigh() {
+      const curso = document.getElementById("selectCursoHigh").value;
+      const selectParalelo = document.getElementById("selectParaleloHigh");
+      const tabla = document.getElementById("tablaEstudiantesHigh");
+
+      selectParalelo.innerHTML = `<option value="">Cargando paralelos...</option>`;
+
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              Seleccione paralelo para cargar estudiantes
+            </td>
+          </tr>
+        `;
+      }
+
+      if (!curso) {
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/estudiantes/paralelos?curso=${encodeURIComponent(curso)}`);
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando paralelos");
+        }
+
+        selectParalelo.innerHTML = `<option value="">Seleccione paralelo</option>`;
+        selectParalelo.innerHTML += `<option value="todos">Todos</option>`;
+
+        data.data.forEach(paralelo => {
+          selectParalelo.innerHTML += `
+            <option value="${paralelo}">${paralelo}</option>
+          `;
+        });
+
+      } catch (error) {
+        console.error(error);
+        selectParalelo.innerHTML = `<option value="">Error cargando paralelos</option>`;
+      }
+    }
+
+async function cargarEstudiantesLower() {
+  const curso = document.getElementById("selectCursoLower").value;
+  const paralelo = document.getElementById("selectParaleloLower").value;
+  const tabla = document.getElementById("tablaEstudiantesLower");
+  const mensaje = document.getElementById("mensajeLower");
+  const buscador = document.getElementById("buscarEstudianteLower");
+
+  estudiantesLowerData = [];
+
+  if (buscador) {
+    buscador.value = "";
+  }
+
+  mensaje.innerHTML = "";
+
+  if (!curso || !paralelo) {
+    mensaje.innerHTML = `
+      <div class="alert alert-warning border-0 shadow-sm">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Seleccione grado y paralelo.
+      </div>
+    `;
+    return;
+  }
+
+  tabla.innerHTML = `
+    <tr>
+      <td colspan="5" class="text-center text-muted py-4">
+        Cargando estudiantes...
+      </td>
+    </tr>
+  `;
+
+  try {
+    let url = `/api/estudiantes?curso=${encodeURIComponent(curso)}`;
+    
+    if (paralelo !== "todos") {
+      url += `&paralelo=${encodeURIComponent(paralelo)}`;
+    }
+    
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.ok) {
+      throw new Error(data.message || "Error cargando estudiantes");
+    }
+
+    estudiantesLowerData = data.data || [];
+
+    renderTablaLower(estudiantesLowerData);
+
+  } catch (error) {
+    console.error(error);
+
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-danger py-4">
+          Error cargando estudiantes.
+        </td>
+      </tr>
+    `;
+  }
+}
+
+    async function cargarEstudiantesMiddle() {
+      const curso = document.getElementById("selectCursoMiddle").value;
+      const paralelo = document.getElementById("selectParaleloMiddle").value;
+      const tabla = document.getElementById("tablaEstudiantesMiddle");
+      const mensaje = document.getElementById("mensajeMiddle");
+      const buscador = document.getElementById("buscarEstudianteMiddle");
+
+      estudiantesMiddleData = [];
+
+      if (buscador) {
+        buscador.value = "";
+      }
+
+      mensaje.innerHTML = "";
+
+      if (!curso || !paralelo) {
+        mensaje.innerHTML = `
+          <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Seleccione grado y paralelo.
+          </div>
+        `;
+        return;
+      }
+
+      tabla.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            Cargando estudiantes...
+          </td>
+        </tr>
+      `;
+
+      try {
+        let url = `/api/estudiantes?curso=${encodeURIComponent(curso)}`;
+        
+        if (paralelo !== "todos") {
+          url += `&paralelo=${encodeURIComponent(paralelo)}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando estudiantes");
+        }
+
+        estudiantesMiddleData = data.data || [];
+
+        renderTablaMiddle(estudiantesMiddleData);
+
+      } catch (error) {
+        console.error(error);
+
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-danger py-4">
+              Error cargando estudiantes.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    async function cargarEstudiantesHigh() {
+      const curso = document.getElementById("selectCursoHigh").value;
+      const paralelo = document.getElementById("selectParaleloHigh").value;
+      const tabla = document.getElementById("tablaEstudiantesHigh");
+      const mensaje = document.getElementById("mensajeHigh");
+      const buscador = document.getElementById("buscarEstudianteHigh");
+
+      estudiantesHighData = [];
+
+      if (buscador) {
+        buscador.value = "";
+      }
+
+      mensaje.innerHTML = "";
+
+      if (!curso || !paralelo) {
+        mensaje.innerHTML = `
+          <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Seleccione grado y paralelo.
+          </div>
+        `;
+        return;
+      }
+
+      tabla.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            Cargando estudiantes...
+          </td>
+        </tr>
+      `;
+
+      try {
+        let url = `/api/estudiantes?curso=${encodeURIComponent(curso)}`;
+        
+        if (paralelo !== "todos") {
+          url += `&paralelo=${encodeURIComponent(paralelo)}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.ok) {
+          throw new Error(data.message || "Error cargando estudiantes");
+        }
+
+        estudiantesHighData = data.data || [];
+
+        renderTablaHigh(estudiantesHighData);
+
+      } catch (error) {
+        console.error(error);
+
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center text-danger py-4">
+              Error cargando estudiantes.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function abrirModal(id, nombre) {
+      estudianteActual = id;
+
+      document.getElementById("modalNombre").innerText = nombre;
+
+      const now = new Date();
+
+      document.getElementById("modalFecha").value = now.toISOString().split("T")[0];
+      document.getElementById("modalHora").value = now.toTimeString().slice(0, 5);
+
+      const modalElement = document.getElementById("modalSalida");
+      const modal = new bootstrap.Modal(modalElement);
+      modal.show();
+    }
+
+    async function registrarSalida(tipo) {
+  const motivo = document.getElementById("modalMotivo").value;
+  const fecha = document.getElementById("modalFecha").value;
+  const hora = document.getElementById("modalHora").value;
+
+  if (!estudianteActual || !fecha || !hora) {
+    alert("Faltan datos para registrar la salida");
+    return;
+  }
+
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+  const payload = {
+    estudiante_id: estudianteActual,
+    usuario_id: usuario?.id || null,
+    tipo_salida: tipo,
+    fecha: fecha,
+    hora: hora,
+    motivo: motivo,
+    nivel: "lower"
+  };
+
+  try {
+    const res = await fetch("/api/salidas", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      throw new Error(data.message || "Error registrando salida");
+    }
+
+    alert("Salida registrada correctamente");
+
+    const modalElement = document.getElementById("modalSalida");
+    const modal = bootstrap.Modal.getInstance(modalElement);
+
+    if (modal) {
+      modal.hide();
+    }
+
+  } catch (error) {
+    console.error(error);
+    alert(error.message);
+  }
+}
+
+    document.addEventListener("change", function (e) {
+      if (e.target && e.target.id === "archivoCSV") {
+        const archivo = e.target.files[0];
+
+        const nombreArchivo = document.getElementById("nombreArchivo");
+        const estadoImportacion = document.getElementById("estadoImportacion");
+
+        if (nombreArchivo) {
+          nombreArchivo.innerText = archivo ? archivo.name : "Ningún archivo";
+        }
+
+        if (estadoImportacion) {
+          estadoImportacion.innerText = archivo ? "Listo para importar" : "Pendiente";
+          estadoImportacion.className = archivo ? "fw-semibold text-primary" : "fw-semibold text-secondary";
+        }
+      }
+    });
+
+    function importarCSV() {
+      const input = document.getElementById("archivoCSV");
+      const resultado = document.getElementById("resultadoImportacion");
+      const estadoImportacion = document.getElementById("estadoImportacion");
+
+      if (!input || !input.files.length) {
+        resultado.innerHTML = `
+          <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Seleccione un archivo CSV antes de importar.
+          </div>
+        `;
+        return;
+      }
+
+      const archivo = input.files[0];
+
+      const formData = new FormData();
+      formData.append("archivo", archivo);
+      formData.append("usuario_id", usuario.id || "");
+
+      resultado.innerHTML = `
+        <div class="alert alert-info border-0 shadow-sm">
+          <i class="bi bi-hourglass-split me-2"></i>
+          Importando archivo, por favor espere...
+        </div>
+      `;
+
+      if (estadoImportacion) {
+        estadoImportacion.innerText = "Importando...";
+        estadoImportacion.className = "fw-semibold text-info";
+      }
+
+      fetch("/api/importaciones/estudiantes", {
+        method: "POST",
+        body: formData
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.ok) {
+            throw new Error(data.message || "Error al importar");
+          }
+
+          resultado.innerHTML = `
+            <div class="alert alert-success border-0 shadow-sm">
+              <i class="bi bi-check-circle me-2"></i>
+              Importación finalizada correctamente.
+            </div>
+          `;
+
+          if (estadoImportacion) {
+            estadoImportacion.innerText = "Importado";
+            estadoImportacion.className = "fw-semibold text-success";
+          }
+        })
+        .catch(err => {
+          console.error(err);
+
+          resultado.innerHTML = `
+            <div class="alert alert-danger border-0 shadow-sm">
+              <i class="bi bi-x-circle me-2"></i>
+              ${err.message}
+            </div>
+          `;
+
+          if (estadoImportacion) {
+            estadoImportacion.innerText = "Error";
+            estadoImportacion.className = "fw-semibold text-danger";
+          }
+        });
+    }
+
+    function logout() {
+      localStorage.removeItem("usuario");
+      window.location.href = "/";
+    }
+
+    mostrarInicio();
+
+function renderTablaLower(lista) {
+  const tabla = document.getElementById("tablaEstudiantesLower");
+
+  if (!lista || lista.length === 0) {
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">
+          No hay estudiantes para mostrar.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tabla.innerHTML = "";
+
+  lista.forEach(est => {
+    const nombreCompleto = `${est.apellidos} ${est.nombres}`;
+    const nombreSeguro = nombreCompleto.replace(/'/g, "\\'");
+
+    tabla.innerHTML += `
+      <tr class="border-bottom">
+        <td class="fw-semibold">${est.codigo}</td>
+
+        <td>
+          <div class="fw-semibold">${nombreCompleto}</div>
+          <small class="text-muted">Código HIK: ${est.codigo_hik || "N/A"}</small>
+        </td>
+
+        <td>${est.curso}</td>
+        <td>${est.paralelo}</td>
+
+        <td class="text-center">
+          <button class="btn btn-success px-3 shadow-sm"
+            onclick="abrirModal('${est.id}','${nombreSeguro}')">
+            <i class="bi bi-box-arrow-right me-1"></i> Registrar
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filtrarEstudiantesLower() {
+  const input = document.getElementById("buscarEstudianteLower");
+
+  if (!input) return;
+
+  const filtro = input.value.toLowerCase().trim();
+
+  if (!filtro) {
+    renderTablaLower(estudiantesLowerData);
+    return;
+  }
+
+  const filtrados = estudiantesLowerData.filter(est => {
+    const texto = `
+      ${est.codigo || ""}
+      ${est.codigo_hik || ""}
+      ${est.apellidos || ""}
+      ${est.nombres || ""}
+      ${est.curso || ""}
+      ${est.paralelo || ""}
+    `.toLowerCase();
+
+    return texto.includes(filtro);
+  });
+
+  renderTablaLower(filtrados);
+}
+
+function renderTablaMiddle(lista) {
+  const tabla = document.getElementById("tablaEstudiantesMiddle");
+
+  if (!lista || lista.length === 0) {
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">
+          No hay estudiantes para mostrar.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tabla.innerHTML = "";
+
+  lista.forEach(est => {
+    const nombreCompleto = `${est.apellidos} ${est.nombres}`;
+    const nombreSeguro = nombreCompleto.replace(/'/g, "\\'");
+
+    tabla.innerHTML += `
+      <tr class="border-bottom">
+        <td class="fw-semibold">${est.codigo}</td>
+
+        <td>
+          <div class="fw-semibold">${nombreCompleto}</div>
+          <small class="text-muted">Código HIK: ${est.codigo_hik || "N/A"}</small>
+        </td>
+
+        <td>${est.curso}</td>
+        <td>${est.paralelo}</td>
+
+        <td class="text-center">
+          <button class="btn btn-success px-3 shadow-sm"
+            onclick="abrirModal('${est.id}','${nombreSeguro}')">
+            <i class="bi bi-box-arrow-right me-1"></i> Registrar
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filtrarEstudiantesMiddle() {
+  const input = document.getElementById("buscarEstudianteMiddle");
+
+  if (!input) return;
+
+  const filtro = input.value.toLowerCase().trim();
+
+  if (!filtro) {
+    renderTablaMiddle(estudiantesMiddleData);
+    return;
+  }
+
+  const filtrados = estudiantesMiddleData.filter(est => {
+    const texto = `
+      ${est.codigo || ""}
+      ${est.codigo_hik || ""}
+      ${est.apellidos || ""}
+      ${est.nombres || ""}
+      ${est.curso || ""}
+      ${est.paralelo || ""}
+    `.toLowerCase();
+
+    return texto.includes(filtro);
+  });
+
+  renderTablaMiddle(filtrados);
+}
+
+function renderTablaHigh(lista) {
+  const tabla = document.getElementById("tablaEstudiantesHigh");
+
+  if (!lista || lista.length === 0) {
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">
+          No hay estudiantes para mostrar.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tabla.innerHTML = "";
+
+  lista.forEach(est => {
+    const nombreCompleto = `${est.apellidos} ${est.nombres}`;
+    const nombreSeguro = nombreCompleto.replace(/'/g, "\\'");
+
+    tabla.innerHTML += `
+      <tr class="border-bottom">
+        <td class="fw-semibold">${est.codigo}</td>
+
+        <td>
+          <div class="fw-semibold">${nombreCompleto}</div>
+          <small class="text-muted">Código HIK: ${est.codigo_hik || "N/A"}</small>
+        </td>
+
+        <td>${est.curso}</td>
+        <td>${est.paralelo}</td>
+
+        <td class="text-center">
+          <button class="btn btn-success px-3 shadow-sm"
+            onclick="abrirModal('${est.id}','${nombreSeguro}')">
+            <i class="bi bi-box-arrow-right me-1"></i> Registrar
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filtrarEstudiantesHigh() {
+  const input = document.getElementById("buscarEstudianteHigh");
+
+  if (!input) return;
+
+  const filtro = input.value.toLowerCase().trim();
+
+  if (!filtro) {
+    renderTablaHigh(estudiantesHighData);
+    return;
+  }
+
+  const filtrados = estudiantesHighData.filter(est => {
+    const texto = `
+      ${est.codigo || ""}
+      ${est.codigo_hik || ""}
+      ${est.apellidos || ""}
+      ${est.nombres || ""}
+      ${est.curso || ""}
+      ${est.paralelo || ""}
+    `.toLowerCase();
+
+    return texto.includes(filtro);
+  });
+
+  renderTablaHigh(filtrados);
+}
+  </script>
+
+</body>
+
+</html>

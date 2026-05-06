@@ -1,0 +1,140 @@
+<div class="card border-0 shadow-lg p-4 rounded-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold text-primary mb-0">
+        <i class="bi bi-door-open fs-5 me-2"></i> Control de Salidas
+      </h4>
+      <small class="text-muted">High School</small>
+    </div>
+
+    <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+      Activo
+    </span>
+  </div>
+
+  <div class="row g-3 mb-3">
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold text-muted">Grado</label>
+      <select id="selectCursoHigh" class="form-select shadow-sm" onchange="cargarParalelosHigh()">
+        <option value="">Seleccione grado</option>
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold text-muted">Paralelo</label>
+      <select id="selectParaleloHigh" class="form-select shadow-sm">
+        <option value="">Seleccione paralelo</option>
+      </select>
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100 shadow-sm" onclick="cargarEstudiantesHigh()">
+        <i class="bi bi-search me-1"></i> Cargar
+      </button>
+    </div>
+
+  </div>
+
+  <!-- BUSCADOR -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <label class="form-label fw-semibold text-muted">Buscar estudiante</label>
+      <div class="input-group shadow-sm">
+        <span class="input-group-text bg-white">
+          <i class="bi bi-search text-primary"></i>
+        </span>
+        <input id="buscarEstudianteHigh" type="text" class="form-control"
+          placeholder="Buscar por código, apellido o nombre..." oninput="filtrarEstudiantesHigh()">
+      </div>
+    </div>
+  </div>
+
+  <div id="mensajeHigh"></div>
+
+  <div class="table-responsive">
+    <table class="table align-middle table-hover">
+
+      <thead class="bg-light">
+        <tr class="text-secondary">
+          <th>CÓDIGO</th>
+          <th>ESTUDIANTE</th>
+          <th>CURSO</th>
+          <th>PARALELO</th>
+          <th class="text-center">ACCIÓN</th>
+        </tr>
+      </thead>
+
+      <tbody id="tablaEstudiantesHigh">
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            Seleccione grado y paralelo para cargar estudiantes
+          </td>
+        </tr>
+      </tbody>
+
+    </table>
+  </div>
+
+</div>
+
+<div class="modal fade" id="modalSalida" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+
+      <div class="modal-header border-0 bg-light rounded-top-4">
+        <h5 class="modal-title fw-bold text-primary">
+          <i class="bi bi-person-walking fs-6 me-1"></i> Registro de Salida
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+
+        <div class="mb-3">
+          <small class="text-muted">Alumno</small>
+          <div class="fw-bold fs-5" id="modalNombre"></div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Motivo</label>
+          <textarea id="modalMotivo" class="form-control shadow-sm" rows="3"
+            placeholder="Ingrese el motivo de salida..."></textarea>
+        </div>
+
+        <div class="row g-3">
+
+          <div class="col">
+            <label class="form-label fw-semibold">Fecha</label>
+            <input id="modalFecha" type="date" class="form-control shadow-sm">
+          </div>
+
+          <div class="col">
+            <label class="form-label fw-semibold">Hora</label>
+            <input id="modalHora" type="time" class="form-control shadow-sm">
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer border-0 justify-content-center pb-4 gap-3">
+
+        <button class="btn btn-outline-primary px-4 py-2 shadow-sm d-flex align-items-center gap-2"
+          onclick="registrarSalida('PP')">
+          <i class="bi bi-door-open fs-6"></i>
+          <span class="fw-semibold">Puerta</span>
+        </button>
+
+        <button class="btn btn-success px-4 py-2 shadow-sm d-flex align-items-center gap-2"
+          onclick="registrarSalida('BUS')">
+          <i class="bi bi-bus-front fs-6"></i>
+          <span class="fw-semibold">Bus</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</div>
