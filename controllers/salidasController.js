@@ -4,7 +4,8 @@ import {
   registrarLogHik,
   getSalidasHoy,
   getPendientes,
-  getActividadReciente
+  getActividadReciente,
+  getSalidasPorFecha
 } from "../models/salidaModel.js";
 
 import { asignarEstudianteNivelAcceso } from "../services/hikCentralService.js";
@@ -153,6 +154,37 @@ export async function obtenerActividadReciente(req, res) {
     return res.status(500).json({
       ok: false,
       message: "Error obteniendo actividad reciente"
+    });
+  }
+}
+
+/* =========================
+   REPORTE SALIDAS POR FECHA
+========================= */
+export async function obtenerSalidasPorFecha(req, res) {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({
+        ok: false,
+        message: "Debe enviar fecha_inicio y fecha_fin"
+      });
+    }
+
+    const salidas = await getSalidasPorFecha(fecha_inicio, fecha_fin);
+
+    return res.json({
+      ok: true,
+      data: salidas
+    });
+
+  } catch (error) {
+    console.error("Error obteniendo salidas por fecha:", error);
+
+    return res.status(500).json({
+      ok: false,
+      message: "Error obteniendo salidas por fecha"
     });
   }
 }

@@ -7,6 +7,7 @@ import authRoutes from "./routes/authRoutes.js";
 import importacionesRoutes from "./routes/importacionesRoutes.js";
 import estudiantesRoutes from "./routes/estudiantesRoutes.js";
 import salidasRoutes from "./routes/salidasRoutes.js";
+// import reportesRoutes from "./routes/reportesRoutes.js";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use("/api", authRoutes);
 app.use("/api/importaciones", importacionesRoutes);
 app.use("/api/estudiantes", estudiantesRoutes);
 app.use("/api/salidas", salidasRoutes);
+// app.use("/api/reportes", reportesRoutes);
 
 /* =========================
    VISTAS (FRONTEND)

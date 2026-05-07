@@ -8,6 +8,8 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <style>
     body {
       background: #eef2f7;
@@ -187,7 +189,13 @@
         permiso: "importar_data",
         texto: "Importar Data",
         icono: "bi-cloud-upload"
+      },
+      {
+        permiso: "reporte_salidas",
+        texto: "Reporte de Salidas",
+        icono: "bi-file-earmark-text"
       }
+
     ];
 
     opciones.forEach(op => {
@@ -289,7 +297,8 @@
             salida_lower: "Salida Lower School",
             salida_middle: "Salida Middle School",
             salida_high: "Salida High School",
-            importar_data: "Importar Data"
+            importar_data: "Importar Data",
+            reporte_salidas: "Reporte de Salidas"
           };
 
           document.getElementById("tituloSeccion").innerText = titulos[vista] || "Dashboard";
@@ -1148,6 +1157,203 @@ function filtrarEstudiantesHigh() {
   });
 
   renderTablaHigh(filtrados);
+}
+
+async function buscarReporteSalidas() {
+  const fechaInicio = document.getElementById("fechaInicioReporte").value;
+  const fechaFin = document.getElementById("fechaFinReporte").value;
+  const mensaje = document.getElementById("mensajeReporte");
+  const tabla = document.getElementById("tablaReporteSalidas");
+
+  mensaje.innerHTML = "";
+
+  if (!fechaInicio || !fechaFin) {
+    mensaje.innerHTML = `
+      <div class="alert alert-warning border-0 shadow-sm">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Seleccione ambas fechas para buscar.
+      </div>
+    `;
+    return;
+  }
+
+  if (fechaInicio > fechaFin) {
+    mensaje.innerHTML = `
+      <div class="alert alert-warning border-0 shadow-sm">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        La fecha de inicio no puede ser mayor a la fecha fin.
+      </div>
+    `;
+    return;
+  }
+
+  tabla.innerHTML = `
+    <tr>
+      <td colspan="8" class="text-center text-muted py-4">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        Cargando reporte...
+      </td>
+    </tr>
+  `;
+
+  try {
+    const response = await fetch(`/api/salidas/reporte?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.message || "Error al obtener el reporte");
+    }
+
+    renderTablaReporte(data.data);
+
+  } catch (error) {
+    console.error("Error:", error);
+    mensaje.innerHTML = `
+      <div class="alert alert-danger border-0 shadow-sm">
+        <i class="bi bi-x-circle me-2"></i>
+        ${error.message}
+      </div>
+    `;
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-danger py-4">
+          Error al cargar el reporte
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function renderTablaReporte(salidas) {
+  const tabla = document.getElementById("tablaReporteSalidas");
+
+  if (!salidas || salidas.length === 0) {
+    tabla.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted py-4">
+        <i class="bi bi-info-circle me-2"></i>
+        No se encontraron salidas en el rango de fechas seleccionado.
+      </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tabla.innerHTML = "";
+
+  salidas.forEach(salida => {
+    const tipoBadge = salida.tipo === "BUS" 
+      ? '<span class="badge bg-primary">Bus</span>' 
+      : '<span class="badge bg-success">PP</span>';
+
+    tabla.innerHTML += `
+      <tr>
+        <td>${salida.fecha}</td>
+        <td>${salida.hora}</td>
+        <td class="fw-semibold">${salida.estudiante}</td>
+        <td>${salida.curso}</td>
+        <td>${salida.paralelo}</td>
+        <td>${tipoBadge}</td>
+        <td>${salida.motivo}</td>
+        <td>${salida.registrado_por}</td>
+      </tr>
+    `;
+  });
+}
+
+async function descargarPDFReporte() {
+  const fechaInicio = document.getElementById("fechaInicioReporte").value;
+  const fechaFin = document.getElementById("fechaFinReporte").value;
+
+  if (!fechaInicio || !fechaFin) {
+    alert("Seleccione ambas fechas para descargar el reporte.");
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/salidas/reporte?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
+    const data = await response.json();
+
+    if (!data.ok || !data.data || data.data.length === 0) {
+      alert("No hay datos para descargar en el rango seleccionado.");
+      return;
+    }
+
+    // Crear PDF usando jsPDF en modo horizontal
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const marginLeft = 15;
+    const marginRight = 15;
+    const headerY = 60;
+    const lineHeight = 4.5;
+
+    // Título
+    doc.setFontSize(18);
+    doc.text("Reporte de Salidas", marginLeft, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Periodo: ${fechaInicio} - ${fechaFin}`, marginLeft, 35);
+    doc.text(`Total de salidas: ${data.data.length}`, marginLeft, 45);
+
+    const columns = [
+      { label: 'Fecha', key: 'fecha', x: marginLeft, width: 18 },
+      { label: 'Hora', key: 'hora', x: 38, width: 14 },
+      { label: 'Estudiante', key: 'estudiante', x: 55, width: 68 },
+      { label: 'Curso', key: 'curso', x: 126, width: 16 },
+      { label: 'Paralelo', key: 'paralelo', x: 144, width: 16 },
+      { label: 'Tipo', key: 'tipo', x: 162, width: 18 },
+      { label: 'Motivo', key: 'motivo', x: 180, width: 70 },
+      { label: 'Registrado por', key: 'registrado_por', x: 255, width: pageWidth - 255 - marginRight }
+    ];
+
+    function printTableHeader(currentY) {
+      doc.setFontSize(10);
+      columns.forEach(col => {
+        doc.text(col.label, col.x, currentY);
+      });
+      doc.setLineWidth(0.2);
+      doc.line(marginLeft, currentY + 2, pageWidth - marginRight, currentY + 2);
+      doc.setFontSize(8);
+      return currentY + 8;
+    }
+
+    let y = printTableHeader(headerY);
+
+    data.data.forEach(salida => {
+      const rowValues = columns.map(col => {
+        const value = salida[col.key] != null ? salida[col.key].toString() : '';
+        return doc.splitTextToSize(value, col.width);
+      });
+
+      const rowHeight = Math.max(...rowValues.map(lines => lines.length)) * lineHeight;
+
+      if (y + rowHeight > pageHeight - 20) {
+        doc.addPage();
+        y = printTableHeader(20);
+      }
+
+      rowValues.forEach((lines, index) => {
+        const col = columns[index];
+        doc.text(lines, col.x, y);
+      });
+
+      y += rowHeight + 2;
+    });
+
+    // Pie de página
+    const fechaGeneracion = new Date().toLocaleDateString();
+    doc.setFontSize(8);
+    doc.text(`Generado el: ${fechaGeneracion}`, marginLeft, pageHeight - 10);
+
+    // Descargar
+    doc.save(`reporte_salidas_${fechaInicio}_${fechaFin}.pdf`);
+
+  } catch (error) {
+    console.error("Error al descargar PDF:", error);
+    alert("Error al generar el PDF.");
+  }
 }
   </script>
 

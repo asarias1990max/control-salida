@@ -1,0 +1,63 @@
+<div class="card border-0 shadow-lg p-4 rounded-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold text-primary mb-0">
+        <i class="bi bi-file-earmark-text fs-5 me-2"></i> Reporte de Salidas
+      </h4>
+      <small class="text-muted">Consulta por rango de fechas</small>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label class="form-label fw-semibold text-muted">Desde</label>
+      <input id="fechaInicioReporte" type="date" class="form-control shadow-sm">
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold text-muted">Hasta</label>
+      <input id="fechaFinReporte" type="date" class="form-control shadow-sm">
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100 shadow-sm" onclick="buscarReporteSalidas()">
+        <i class="bi bi-search me-1"></i> Buscar
+      </button>
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-success w-100 shadow-sm" onclick="descargarPDFReporte()">
+        <i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF
+      </button>
+    </div>
+  </div>
+
+  <div id="mensajeReporte"></div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="bg-light">
+        <tr class="text-secondary">
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Estudiante</th>
+          <th>Curso</th>
+          <th>Paralelo</th>
+          <th>Tipo</th>
+          <th>Motivo</th>
+          <th>Registrado por</th>
+        </tr>
+      </thead>
+
+      <tbody id="tablaReporteSalidas">
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">
+            Seleccione un rango de fechas
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>

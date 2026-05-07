@@ -123,3 +123,48 @@ export async function getActividadReciente(limit = 10) {
     fecha: item.fecha
   }));
 }
+
+/* =========================
+   REPORTE SALIDAS POR FECHA
+========================= */
+export async function getSalidasPorFecha(fechaInicio, fechaFin) {
+  const { data, error } = await supabase
+    .from("salidas")
+    .select(`
+      id,
+      fecha,
+      hora,
+      tipo_salida,
+      motivo,
+      nivel,
+      estudiantes (
+        apellidos,
+        nombres,
+        curso,
+        paralelo
+      ),
+      usuarios (
+        nombre
+      )
+    `)
+    .gte("fecha", fechaInicio)
+    .lte("fecha", fechaFin)
+    .order("fecha", { ascending: false })
+    .order("hora", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map(item => ({
+    id: item.id,
+    fecha: item.fecha,
+    hora: item.hora,
+    estudiante: `${item.estudiantes.apellidos} ${item.estudiantes.nombres}`,
+    curso: item.estudiantes.curso,
+    paralelo: item.estudiantes.paralelo,
+    tipo: item.tipo_salida,
+    motivo: item.motivo || "",
+    registrado_por: item.users?.nombre || "Sistema"
+  }));
+}

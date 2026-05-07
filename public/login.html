@@ -11,6 +11,9 @@
   <!-- Iconos -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
+  <!-- Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
     body {
       background: linear-gradient(135deg, #1f3c88, #4a69bd);
@@ -79,9 +82,22 @@
     <input type="password" id="pass" class="form-control mb-4" placeholder="Contraseña">
 
     <!-- BOTÓN (MISMA FUNCIÓN) -->
-    <button onclick="login()" class="btn btn-primary w-100">
+    <button onclick="login()" class="btn btn-primary w-100 mb-3">
       <i class="bi bi-box-arrow-in-right"></i> Ingresar
     </button>
+
+    <!-- DIVISOR -->
+    <div class="d-flex align-items-center mb-3">
+      <hr class="flex-fill">
+      <span class="px-2 text-muted small">o</span>
+      <hr class="flex-fill">
+    </div>
+
+    <!-- BOTÓN GOOGLE -->
+    <button onclick="loginWithGoogle()" class="btn btn-outline-dark w-100 mb-2" id="googleBtn">
+      <i class="bi bi-google me-2"></i> Iniciar con Google
+    </button>
+    <div id="googleStatus" class="text-muted small mb-4">Cargando configuración de Google...</div>
 
     <div class="mt-4 footer">
       © 2026 Sistema Institucional
