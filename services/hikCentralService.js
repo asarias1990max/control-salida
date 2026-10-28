@@ -380,7 +380,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
   while (eventos.length < total) {
     const timestamp = Date.now().toString();
     const nonce = crypto.randomUUID();
-    const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: 198914, doorIndexCodes: doorIndexCodes.slice(0, 10), pageNo, pageSize, temperatureStatus: -1, maskStatus: -1, sortField: "SwipeTime", orderType: 1 };
+    const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: 196893, doorIndexCodes: doorIndexCodes.slice(0, 10), pageNo, pageSize, temperatureStatus: -1, maskStatus: -1, sortField: "SwipeTime", orderType: 1 };
     const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
     const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
     const result = response.data;
