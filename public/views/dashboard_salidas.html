@@ -53,6 +53,24 @@
       </div>
     </div>
   </div>
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div><h5 class="mb-1">Control diario de salidas</h5><p class="text-muted small mb-0">Compara la hora esperada del nivel de acceso con el primer evento detectado en las puertas configuradas.</p></div>
+        <button type="button" class="btn btn-outline-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar control</button>
+      </div>
+      <div id="dsResumenIndicadores" class="row g-2 mb-3">
+        <div class="col-12 text-muted small">Calculando control diario...</div>
+      </div>
+      <div id="dsResumenEstado" class="small text-muted mb-2">Consultando histórico diario...</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+          <thead><tr><th>Estudiante</th><th>Código</th><th>Curso</th><th>Nivel de acceso</th><th>Hora esperada</th><th>Hora real</th><th>Puerta</th><th>Novedad</th></tr></thead>
+          <tbody id="dsTablaResumenDiario"><tr><td colspan="8" class="text-center text-muted py-3">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
   <div class="card shadow-sm border-0">
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
