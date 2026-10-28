@@ -2,6 +2,7 @@ import crypto from "crypto";
 import axios from "axios";
 import https from "https";
 import dotenv from "dotenv";
+import { supabase } from "../config/supabaseClient.js";
 
 dotenv.config();
 
@@ -407,6 +408,62 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     if (!list.length || list.length < pageSize || eventos.length >= total) break;
     pageNo++;
   }
+  // La tabla estudiantes de Supabase es la fuente autorizada del dashboard.
+  // Solo se muestran eventos cuyo identificador coincide con codigo_hik de un estudiante activo.
+  const estudiantes = [];
+  const tamanoPaginaEstudiantes = 1000;
+  for (let desde = 0; ; desde += tamanoPaginaEstudiantes) {
+    const { data, error } = await supabase
+      .from("estudiantes")
+      .select("codigo_hik, codigo, apellidos, nombres, seccion, curso, paralelo, estado")
+      .eq("estado", true)
+      .not("codigo_hik", "is", null)
+      .range(desde, desde + tamanoPaginaEstudiantes - 1);
+    if (error) throw new Error("No se pudo consultar la lista de estudiantes de Supabase: " + error.message);
+    estudiantes.push(...(data || []));
+    if (!data || data.length < tamanoPaginaEstudiantes) break;
+  }
+
+  const normalizarIdentificador = (valor) => String(valor ?? "").trim().toLowerCase();
+  const estudiantePorCodigoHik = new Map();
+  estudiantes.forEach(estudiante => {
+    const codigoHik = normalizarIdentificador(estudiante.codigo_hik);
+    if (codigoHik) estudiantePorCodigoHik.set(codigoHik, estudiante);
+  });
+
+  const eventosSoloEstudiantes = eventos.flatMap(evento => {
+    const identificadores = [
+      evento.personCode,
+      evento.personId,
+      evento.employeeNo,
+      evento.employeeNoString,
+      evento.personInfo?.personCode,
+      evento.personInfo?.personId
+    ].map(normalizarIdentificador).filter(Boolean);
+    const estudiante = identificadores.map(id => estudiantePorCodigoHik.get(id)).find(Boolean);
+    if (!estudiante) return [];
+    const nombreEstudiante = [estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" ").trim();
+    return [{
+      ...evento,
+      personName: nombreEstudiante || evento.personName || evento.name || "Estudiante",
+      studentCode: estudiante.codigo || "",
+      studentHikCode: estudiante.codigo_hik,
+      studentSection: estudiante.seccion || "",
+      studentCourse: estudiante.curso || "",
+      studentParallel: estudiante.paralelo || ""
+    }];
+  });
+
+  console.log("[Dashboard] Filtro Supabase aplicado:", JSON.stringify({
+    estudiantesActivosConCodigoHik: estudiantePorCodigoHik.size,
+    eventosHikCentral: eventos.length,
+    eventosDeEstudiantes: eventosSoloEstudiantes.length
+  }));
+
+  // A partir de aquí se trabaja solo con eventos que coinciden con estudiantes de Supabase.
+  eventos.length = 0;
+  eventos.push(...eventosSoloEstudiantes);
+
   // Algunos modelos de HikCentral no incluyen personName en el evento.
   // Resolver los personId disponibles mediante el endpoint de detalle de persona.
   const personIdInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
