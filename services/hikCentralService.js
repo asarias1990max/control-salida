@@ -206,6 +206,8 @@ export async function sincronizarNivelesYAsignacionesHik() {
   const estudiantePorCodigoHik = new Map(estudiantes.map(e => [String(e.codigo_hik || "").trim().toLowerCase(), e]).filter(([k]) => k));
   let personasConsultadas = 0;
   let personasSinCoincidencia = 0;
+  const cacheDetallesPersona = new Map();
+  const inicioSincronizacion = new Date().toISOString();
 
   for (const nivel of niveles) {
     const groupOriginal = nivel.datosOriginales || {};
@@ -221,37 +223,50 @@ export async function sincronizarNivelesYAsignacionesHik() {
       sincronizado_en: new Date().toISOString()
     });
 
-    const data = await postArtemis(ACCESS_LEVEL_PERSONS_PATH, { pageNo: 1, pageSize: 500, type: 1, privilegeGroupId: String(nivel.id) });
-    const personas = Array.isArray(data.list) ? data.list
-      : Array.isArray(data.personList) ? data.personList
-      : Array.isArray(data.persons) ? data.persons
-      : Array.isArray(data.records) ? data.records
-      : Array.isArray(data) ? data : [];
+    const personas = [];
+    let pageNo = 1;
+    let totalPersonas = Infinity;
+    const pageSize = 500;
+    while (personas.length < totalPersonas) {
+      const data = await postArtemis(ACCESS_LEVEL_PERSONS_PATH, { pageNo, pageSize, type: 1, privilegeGroupId: String(nivel.id) });
+      const page = Array.isArray(data.list) ? data.list
+        : Array.isArray(data.personList) ? data.personList
+        : Array.isArray(data.persons) ? data.persons
+        : Array.isArray(data.records) ? data.records
+        : Array.isArray(data) ? data : [];
+      if (pageNo === 1) totalPersonas = Number(data.total ?? data.totalNum ?? page.length);
+      personas.push(...page);
+      if (!page.length || page.length < pageSize || personas.length >= totalPersonas) break;
+      pageNo++;
+    }
     const ids = [...new Set(personas.map(p => String(p.id ?? p.personId ?? p.personCode ?? "").trim()).filter(Boolean))];
     for (let i = 0; i < ids.length; i += 10) {
-      const lote = ids.slice(i, i + 10);
+      const lote = ids.slice(i, i + 10).filter(personId => !cacheDetallesPersona.has(personId));
       const detalles = await Promise.all(lote.map(async personId => {
         try {
           const infoData = await postArtemis("/artemis/api/resource/v1/person/personId/personInfo", { personId });
           return { personId, info: infoData };
         } catch (error) {
           console.warn("[HikCentral] No se pudo resolver persona para nivel", nivel.nombre, personId, error.message);
-          return null;
+          return { personId, info: null };
         }
       }));
-      for (const detalle of detalles.filter(Boolean)) {
-        personasConsultadas++;
-        const info = detalle.info || {};
-        const claves = [info.personCode, info.personId, detalle.personId].map(v => String(v ?? "").trim().toLowerCase()).filter(Boolean);
-        const estudiante = claves.map(k => estudiantePorCodigoHik.get(k)).find(Boolean);
-        if (!estudiante) { personasSinCoincidencia++; continue; }
-        asignaciones.push({
-          estudiante_id: estudiante.id,
-          privilege_group_id: String(nivel.id),
-          person_id_hik: String(info.personId || detalle.personId),
-          datos_originales: { personId: detalle.personId, personCode: info.personCode || null, personName: info.personName || null }
-        });
-      }
+      detalles.forEach(detalle => cacheDetallesPersona.set(detalle.personId, detalle.info));
+    }
+    for (const personId of ids) {
+      const info = cacheDetallesPersona.get(personId);
+      if (!info) { personasSinCoincidencia++; continue; }
+      personasConsultadas++;
+      const claves = [info.personCode, info.personId, personId].map(v => String(v ?? "").trim().toLowerCase()).filter(Boolean);
+      const estudiante = claves.map(k => estudiantePorCodigoHik.get(k)).find(Boolean);
+      if (!estudiante) { personasSinCoincidencia++; continue; }
+      asignaciones.push({
+        estudiante_id: estudiante.id,
+        privilege_group_id: String(nivel.id),
+        person_id_hik: String(info.personId || personId),
+        asignado_en: inicioSincronizacion,
+        datos_originales: { personId, personCode: info.personCode || null, personName: info.personName || null }
+      });
     }
   }
 
@@ -259,14 +274,14 @@ export async function sincronizarNivelesYAsignacionesHik() {
     const { error } = await supabase.from("niveles_acceso_hikcentral").upsert(listaNiveles, { onConflict: "privilege_group_id" });
     if (error) throw new Error("No se pudieron guardar niveles HikCentral: " + error.message);
   }
-  // Reemplazar la foto actual de asignaciones: conserva histórico de eventos, pero refleja los niveles vigentes.
-  const { error: borrarError } = await supabase.from("estudiante_niveles_acceso_hikcentral").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  if (borrarError) throw new Error("No se pudieron actualizar asignaciones anteriores: " + borrarError.message);
+  // Upsert primero y eliminar registros antiguos al final para evitar vaciar la tabla si falla la sincronización.
   for (let i = 0; i < asignaciones.length; i += 500) {
     const lote = asignaciones.slice(i, i + 500);
     const { error } = await supabase.from("estudiante_niveles_acceso_hikcentral").upsert(lote, { onConflict: "estudiante_id,privilege_group_id" });
     if (error) throw new Error("No se pudieron guardar asignaciones de estudiantes: " + error.message);
   }
+  const { error: borrarError } = await supabase.from("estudiante_niveles_acceso_hikcentral").delete().lt("asignado_en", inicioSincronizacion);
+  if (borrarError) throw new Error("No se pudieron limpiar asignaciones antiguas: " + borrarError.message);
   return {
     nivelesSincronizados: listaNiveles.length,
     asignacionesSincronizadas: asignaciones.length,
