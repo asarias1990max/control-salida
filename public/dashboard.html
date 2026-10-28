@@ -467,6 +467,7 @@
         estado.textContent = "Sincronización terminada: " + (d.nivelesSincronizados || 0) + " niveles; " + (d.asignacionesSincronizadas || 0) + " asignaciones vinculadas; " + (d.personasSinCoincidencia || 0) + " personas sin coincidencia con Supabase; " + (d.horariosDetectadosDesdeNombreDescripcion || 0) + " horarios identificados directamente en la API.";
         if (Number.isFinite(Number(d.referenciasHorarioHikCentral))) estado.textContent += " Referencias de horario devueltas por los niveles: " + d.referenciasHorarioHikCentral + ".";
         await cargarNivelesEstudiantesHik();
+        await cargarHistorialDiarioHik();
       } catch (error) {
         estado.className = "small text-danger mb-2";
         estado.textContent = error.message || "Error al sincronizar niveles de acceso.";
