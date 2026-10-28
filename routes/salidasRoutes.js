@@ -1,4 +1,5 @@
 import express from "express";
+import { supabase } from "../config/supabaseClient.js";
 import { obtenerConteoPersonasNivelesHik, obtenerPersonasNivelAccesoHik, obtenerDashboardEventosHik, obtenerPuertasHik } from "../services/hikCentralService.js";
 import {
   registrarSalida,
@@ -17,6 +18,21 @@ router.get("/pendientes", obtenerPendientes);
 router.get("/actividad", obtenerActividadReciente);
 router.get("/reporte", obtenerSalidasPorFecha);
 router.get("/niveles-acceso", obtenerNivelesAcceso);
+router.get("/dashboard-configuracion", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("configuracion_salidas")
+      .select("nivel_acceso, hora_inicio, hora_fin, puertas, activo")
+      .eq("activo", true)
+      .order("hora_inicio", { ascending: true });
+    if (error) throw error;
+    return res.json({ ok: true, data: data || [] });
+  } catch (error) {
+    console.error("Error consultando configuración de salidas:", error.message);
+    return res.status(500).json({ ok: false, message: error.message || "No se pudo cargar la configuración de salidas." });
+  }
+});
+
 router.get("/dashboard-puertas", async (req, res) => {
   try {
     const data = await obtenerPuertasHik();
