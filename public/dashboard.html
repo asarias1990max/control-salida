@@ -346,10 +346,48 @@
           rango.classList.toggle("d-flex", modo.value === "rango");
         }
       };
+      await cargarConfiguracionHorariosHik();
       await cargarPuertasDashboardHik();
       const selectorPuertas = document.getElementById("dsPuertas");
       if (selectorPuertas && selectorPuertas.options.length > 0 && selectorPuertas.options[0].value) {
         await cargarDashboardEventosHik();
+      }
+    }
+
+    async function cargarConfiguracionHorariosHik() {
+      const contenedor = document.getElementById("dsConfiguracionHorarios");
+      if (!contenedor) return;
+      try {
+        const response = await fetch("/api/salidas/dashboard-configuracion", { headers: { Accept: "application/json" } });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || "No se pudieron cargar los horarios.");
+        const configuraciones = Array.isArray(result.data) ? result.data : [];
+        contenedor.replaceChildren();
+        if (!configuraciones.length) {
+          contenedor.innerHTML = '<div class="col-12 text-muted small">No hay horarios activos configurados.</div>';
+          return;
+        }
+        configuraciones.forEach(item => {
+          const columna = document.createElement("div");
+          columna.className = "col-12 col-md-6 col-xl-4";
+          const tarjeta = document.createElement("div");
+          tarjeta.className = "border rounded p-3 h-100";
+          const titulo = document.createElement("div");
+          titulo.className = "fw-semibold mb-1";
+          titulo.textContent = item.nivel_acceso || "Nivel sin nombre";
+          const horario = document.createElement("div");
+          horario.className = "fs-5";
+          horario.textContent = String(item.hora_inicio || "").slice(0, 5) + " – " + String(item.hora_fin || "").slice(0, 5);
+          const puertas = document.createElement("div");
+          puertas.className = "text-muted small mt-1";
+          puertas.textContent = Array.isArray(item.puertas) ? item.puertas.join(", ") : "";
+          tarjeta.append(titulo, horario, puertas);
+          columna.append(tarjeta);
+          contenedor.append(columna);
+        });
+      } catch (error) {
+        contenedor.innerHTML = '<div class="col-12 text-danger small"></div>';
+        contenedor.querySelector("div").textContent = error.message || "Error cargando horarios.";
       }
     }
 
