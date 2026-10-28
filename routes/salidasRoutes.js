@@ -1,5 +1,5 @@
 import express from "express";
-import { obtenerConteoPersonasNivelesHik, obtenerPersonasNivelAccesoHik } from "../services/hikCentralService.js";
+import { obtenerConteoPersonasNivelesHik, obtenerPersonasNivelAccesoHik, obtenerDashboardEventosHik } from "../services/hikCentralService.js";
 import {
   registrarSalida,
   obtenerSalidasHoy,
@@ -17,6 +17,18 @@ router.get("/pendientes", obtenerPendientes);
 router.get("/actividad", obtenerActividadReciente);
 router.get("/reporte", obtenerSalidasPorFecha);
 router.get("/niveles-acceso", obtenerNivelesAcceso);
+router.get("/dashboard-eventos", async (req, res) => {
+  try {
+    const fechaInicio = String(req.query.fecha_inicio || "").trim();
+    const fechaFin = String(req.query.fecha_fin || "").trim();
+    const data = await obtenerDashboardEventosHik(fechaInicio, fechaFin);
+    return res.json({ ok: true, data });
+  } catch (error) {
+    console.error("Error consultando eventos para dashboard:", error.message);
+    return res.status(502).json({ ok: false, message: error.message || "Error consultando eventos de HikCentral." });
+  }
+});
+
 router.get("/niveles-acceso/personas", async (req, res) => {
   try {
     const nivelId = String(req.query.nivelId || "").trim();
