@@ -16,6 +16,13 @@
         <div><label for="dsFechaInicio" class="form-label mb-1">Desde</label><input id="dsFechaInicio" type="date" class="form-control"></div>
         <div><label for="dsFechaFin" class="form-label mb-1">Hasta</label><input id="dsFechaFin" type="date" class="form-control"></div>
       </div>
+      <div style="min-width:240px">
+        <label for="dsPuertas" class="form-label mb-1">Puntos de acceso</label>
+        <select id="dsPuertas" class="form-select" multiple size="3" aria-describedby="dsPuertasAyuda"></select>
+        <div id="dsPuertasAyuda" class="form-text">Carga todas las puertas. Usa Ctrl para seleccionar varias.</div>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="seleccionarTodasPuertasHik(true)">Seleccionar todas</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="seleccionarTodasPuertasHik(false)">Limpiar selección</button>
+      </div>
       <button type="button" class="btn btn-primary" onclick="cargarDashboardEventosHik()"><i class="bi bi-search me-1"></i> Consultar</button>
     </div>
   </div>
