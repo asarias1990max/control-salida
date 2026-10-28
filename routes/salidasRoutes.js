@@ -32,7 +32,7 @@ router.get("/dashboard-niveles-estudiantes", async (req, res) => {
   try {
     const [asignacionesResult, configuracionResult] = await Promise.all([
       supabase.from("estudiante_niveles_acceso_hikcentral")
-        .select("estudiante_id, privilege_group_id, person_id_hik, estudiantes(codigo, codigo_hik, apellidos, nombres, seccion, curso, paralelo), niveles_acceso_hikcentral(nombre, descripcion, hora_salida)")
+        .select("estudiante_id, privilege_group_id, person_id_hik, estudiantes(codigo, codigo_hik, apellidos, nombres, seccion, curso, paralelo), niveles_acceso_hikcentral(nombre, descripcion, hora_salida, time_schedule_name, time_schedule_index_code)")
         .order("estudiante_id", { ascending: true }),
       supabase.from("configuracion_salidas")
         .select("nivel_acceso, hora_inicio, hora_fin, puertas")
@@ -58,6 +58,8 @@ router.get("/dashboard-niveles-estudiantes", async (req, res) => {
         privilege_group_id: row.privilege_group_id,
         nivel_acceso: nivel.nombre || "Nivel sin nombre",
         hora_salida_nivel: horaNivel,
+        horario_hikcentral_nombre: nivel.time_schedule_name || "",
+        horario_hikcentral_id: nivel.time_schedule_index_code || "",
         hora_inicio_configurada: config?.hora_inicio || null,
         hora_fin_configurada: config?.hora_fin || null,
         puertas_configuradas: config?.puertas || [],
