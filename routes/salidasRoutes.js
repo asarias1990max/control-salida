@@ -126,6 +126,68 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
   }
 });
 
+router.get("/dashboard-historial", async (req, res) => {
+  try {
+    const hoy = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(new Date());
+    const fechaHasta = String(req.query.hasta || hoy).trim();
+    const fechaDesde = String(req.query.desde || "").trim() || (() => {
+      const d = new Date(fechaHasta + "T12:00:00-05:00");
+      d.setDate(d.getDate() - 29);
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
+      }).format(d);
+    })();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaDesde) || !/^\d{4}-\d{2}-\d{2}$/.test(fechaHasta) || fechaDesde > fechaHasta) {
+      return res.status(400).json({ ok: false, message: "Selecciona un rango de fechas válido." });
+    }
+    const { data, error } = await supabase
+      .from("historial_diario_hikcentral")
+      .select("fecha_snapshot,total_niveles,total_asignaciones,total_horarios,niveles_acceso,asignaciones_estudiantes,referencias_horario,configuracion_salidas,sincronizado_en")
+      .gte("fecha_snapshot", fechaDesde)
+      .lte("fecha_snapshot", fechaHasta)
+      .order("fecha_snapshot", { ascending: false });
+    if (error) throw error;
+    const filas = data || [];
+    const porFecha = new Map(filas.map(f => [f.fecha_snapshot, f]));
+    const resultado = filas.map(f => {
+      const anteriorFecha = new Date(f.fecha_snapshot + "T12:00:00-05:00");
+      anteriorFecha.setDate(anteriorFecha.getDate() - 1);
+      const anteriorClave = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
+      }).format(anteriorFecha);
+      const anterior = porFecha.get(anteriorClave);
+      const detalleNiveles = (f.niveles_acceso || []).map(n => ({
+        id: n.privilege_group_id, nombre: n.nombre, descripcion: n.descripcion,
+        hora_salida: n.hora_salida, horario: n.time_schedule_name
+      }));
+      const resumenAsignaciones = (f.asignaciones_estudiantes || []).map(a => ({
+        estudiante_id: a.estudiante_id, nivel_id: a.privilege_group_id,
+        persona_hik: a.person_id_hik
+      }));
+      return {
+        fecha: f.fecha_snapshot,
+        sincronizado_en: f.sincronizado_en,
+        total_niveles: f.total_niveles || 0,
+        total_asignaciones: f.total_asignaciones || 0,
+        total_horarios: f.total_horarios || 0,
+        total_reglas: Array.isArray(f.configuracion_salidas) ? f.configuracion_salidas.length : 0,
+        variacion_niveles: anterior ? (f.total_niveles || 0) - (anterior.total_niveles || 0) : null,
+        variacion_asignaciones: anterior ? (f.total_asignaciones || 0) - (anterior.total_asignaciones || 0) : null,
+        detalle_niveles: detalleNiveles,
+        detalle_asignaciones: resumenAsignaciones,
+        referencias_horario: f.referencias_horario || [],
+        configuracion_salidas: f.configuracion_salidas || []
+      };
+    });
+    return res.json({ ok: true, desde: fechaDesde, hasta: fechaHasta, total: resultado.length, data: resultado });
+  } catch (error) {
+    console.error("Error consultando histórico diario de HikCentral:", error.message);
+    return res.status(500).json({ ok: false, message: error.message || "No se pudo consultar el histórico diario." });
+  }
+});
+
 router.post("/dashboard-niveles/sincronizar", async (req, res) => {
   try {
     const data = await sincronizarNivelesYAsignacionesHik();
