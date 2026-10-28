@@ -318,12 +318,67 @@
           if (vista === "salida_high") {
             inicializarHigh();
           }
+          if (vista === "dashboard_salidas") {
+            inicializarDashboardSalidas();
+          }
         })
         .catch(err => {
           console.error(err);
           document.getElementById("contenidoDinamico").innerHTML =
             `<div class="alert alert-danger">Error cargando módulo</div>`;
         });
+    }
+
+    async function inicializarDashboardSalidas() {
+      const select = document.getElementById("nivelAccesoSalida");
+      const mensaje = document.getElementById("dsMensajeEstado");
+      if (!select || !mensaje) return;
+
+      const nivelSeleccionado = select.value;
+      select.disabled = true;
+      select.innerHTML = '<option value="">Cargando niveles de HikCentral...</option>';
+      mensaje.className = "alert alert-info";
+      mensaje.textContent = "Consultando los niveles de acceso configurados en HikCentral...";
+
+      try {
+        const respuesta = await fetch("/api/salidas/niveles-acceso", {
+          headers: { "Accept": "application/json" }
+        });
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok || !resultado.ok) {
+          throw new Error(resultado.message || "No fue posible consultar HikCentral.");
+        }
+
+        const niveles = Array.isArray(resultado.data) ? resultado.data : [];
+        select.innerHTML = "";
+
+        if (niveles.length === 0) {
+          select.innerHTML = '<option value="">No hay niveles de acceso configurados</option>';
+          mensaje.className = "alert alert-warning";
+          mensaje.textContent = "HikCentral respondió correctamente, pero no devolvió niveles de acceso de tipo control.";
+          return;
+        }
+
+        select.add(new Option("Todos los niveles de acceso", ""));
+        niveles.forEach((nivel) => {
+          select.add(new Option(nivel.nombre, nivel.id));
+        });
+
+        if (nivelSeleccionado && niveles.some((nivel) => nivel.id === nivelSeleccionado)) {
+          select.value = nivelSeleccionado;
+        }
+
+        mensaje.className = "alert alert-success";
+        mensaje.textContent = "Se cargaron " + niveles.length + " nivel(es) de acceso desde HikCentral.";
+      } catch (error) {
+        console.error("Error cargando niveles de acceso:", error);
+        select.innerHTML = '<option value="">Error al cargar niveles de acceso</option>';
+        mensaje.className = "alert alert-danger";
+        mensaje.textContent = "No se pudieron cargar los niveles desde HikCentral. Verifica la conexión y las credenciales del servidor.";
+      } finally {
+        select.disabled = false;
+      }
     }
 
     async function inicializarLower() {
