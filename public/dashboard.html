@@ -427,8 +427,7 @@
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo sincronizar HikCentral.");
         const d = result.data || {};
         estado.textContent = "Sincronización terminada: " + (d.nivelesSincronizados || 0) + " niveles; " + (d.asignacionesSincronizadas || 0) + " asignaciones vinculadas; " + (d.personasSinCoincidencia || 0) + " personas sin coincidencia con Supabase; " + (d.horariosDetectadosDesdeNombreDescripcion || 0) + " horarios identificados directamente en la API.";
-        if (Number.isFinite(Number(d.horariosHikCentral))) estado.textContent += " Plantillas de horario: " + d.horariosHikCentral + ".";
-        if (d.errorConsultaHorarios) estado.textContent += " Aviso: HikCentral no permitió leer el detalle de las plantillas; se usará el nombre disponible en cada nivel.";
+        if (Number.isFinite(Number(d.referenciasHorarioHikCentral))) estado.textContent += " Referencias de horario devueltas por los niveles: " + d.referenciasHorarioHikCentral + ".";
         await cargarNivelesEstudiantesHik();
       } catch (error) {
         estado.className = "small text-danger mb-2";
