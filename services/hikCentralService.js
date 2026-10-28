@@ -523,13 +523,12 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     if (!valor) return null;
     let texto = String(valor).trim();
     if (!texto) return null;
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(texto)) texto = texto.replace(" ", "T") + "-05:00";
-    else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(texto)) texto += "-05:00";
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(texto)) texto = texto.replace(" ", "T") + "-05:00";
     const fecha = new Date(texto);
     return Number.isNaN(fecha.getTime()) ? null : fecha.toISOString();
   };
   const filasEventos = eventosConNombre.flatMap(evento => {
-    const fechaRaw = evento.eventTime || evento.swipeTime || evento.time || evento.eventDate || evento.dateTime || evento.occurTime;
+    const fechaRaw = evento.eventTime || evento.SwipeTime || evento.swipeTime || evento.time || evento.eventDate || evento.dateTime || evento.occurTime;
     const fechaEvento = normalizarFechaEvento(fechaRaw);
     const codigoHik = String(evento.studentHikCode || evento.personCode || evento.personInfo?.personCode || evento.employeeNo || evento.employeeNoString || evento.personId || evento.personInfo?.personId || "").trim();
     if (!fechaEvento || !codigoHik || !evento.studentId) return [];
