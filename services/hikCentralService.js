@@ -10,6 +10,7 @@ const HIK_APP_KEY = process.env.HIK_APP_KEY;
 const HIK_APP_SECRET = process.env.HIK_APP_SECRET;
 
 const ADD_PERSONS_PATH = "/artemis/api/acs/v1/privilege/group/single/addPersons";
+const ACCESS_DOORS_PATH = "/artemis/api/resource/v1/acsDoor/acsDoorList";
 const ACCESS_LEVELS_PATH = "/artemis/api/acs/v1/privilege/group";
 const ACCESS_LEVEL_PERSONS_PATH = "/artemis/api/acs/v1/privilege/group/single/personList";
 
@@ -340,6 +341,38 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
   const fin = fechaFin || hoy;
   if (inicio > fin) throw new Error("La fecha inicial no puede ser posterior a la fecha final.");
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+  // HikCentral requiere doorIndexCodes en la consulta de eventos. Obtener primero
+  // los códigos reales de los puntos de acceso configurados, sin inventarlos.
+  const puertas = [];
+  let paginaPuertas = 1;
+  let totalPuertas = Infinity;
+  const tamanioPuertas = 500;
+  while (puertas.length < totalPuertas) {
+    const tsPuertas = Date.now().toString();
+    const noncePuertas = crypto.randomUUID();
+    const bodyPuertas = { pageNo: paginaPuertas, pageSize: tamanioPuertas };
+    const firmaPuertas = generarFirma("POST", ACCESS_DOORS_PATH, tsPuertas, noncePuertas);
+    const respPuertas = await axios.post(HIK_BASE_URL + ACCESS_DOORS_PATH, bodyPuertas, {
+      httpsAgent, timeout: 30000,
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": tsPuertas, "X-Ca-Nonce": noncePuertas, "X-Ca-Signature": firmaPuertas, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
+    });
+    const resPuertas = respPuertas.data;
+    if (!resPuertas || String(resPuertas.code) !== "0") {
+      throw new Error("No se pudieron obtener los puntos de acceso de HikCentral: code=" + (resPuertas?.code ?? "sin código") + "; msg=" + (resPuertas?.msg || "respuesta no válida"));
+    }
+    const dataPuertas = resPuertas.data || {};
+    const listaPuertas = Array.isArray(dataPuertas.list) ? dataPuertas.list : [];
+    totalPuertas = Number(dataPuertas.total ?? listaPuertas.length);
+    puertas.push(...listaPuertas);
+    if (!listaPuertas.length || listaPuertas.length < tamanioPuertas || puertas.length >= totalPuertas) break;
+    paginaPuertas++;
+  }
+  const doorIndexCodes = [...new Set(puertas.map(p => p.doorIndexCode).filter(v => v !== undefined && v !== null && String(v).trim() !== "").map(String))];
+  if (!doorIndexCodes.length) throw new Error("HikCentral no devolvió códigos de puntos de acceso; no se puede consultar el historial de eventos.");
+
+  console.log("[HikCentral] Puntos de acceso disponibles para eventos:", doorIndexCodes.length);
+
   const eventos = [];
   let pageNo = 1;
   let total = Infinity;
@@ -347,7 +380,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
   while (eventos.length < total) {
     const timestamp = Date.now().toString();
     const nonce = crypto.randomUUID();
-    const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: 197151, pageNo, pageSize, temperatureStatus: -1, maskStatus: -1 };
+    const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: 197151, doorIndexCodes, pageNo, pageSize, temperatureStatus: -1, maskStatus: -1 };
     const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
     const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
     const result = response.data;
