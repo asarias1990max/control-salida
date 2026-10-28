@@ -329,144 +329,172 @@
         });
     }
 
+    let eventosDashboardHik = [];
+    let eventosFiltradosDashboardHik = [];
+    let filtroIndicadorDashboardHik = "";
+
     async function inicializarDashboardSalidas() {
-      const select = document.getElementById("nivelAccesoSalida");
-      const mensaje = document.getElementById("dsMensajeEstado");
-      if (!select || !mensaje) return;
-
-      const nivelSeleccionado = select.value;
-      select.disabled = true;
-      select.innerHTML = '<option value="">Cargando niveles de HikCentral...</option>';
-      mensaje.className = "alert alert-info";
-      mensaje.textContent = "Consultando los niveles de acceso configurados en HikCentral...";
-
-      try {
-        const respuesta = await fetch("/api/salidas/niveles-acceso", {
-          headers: { "Accept": "application/json" }
-        });
-        const resultado = await respuesta.json();
-
-        if (!respuesta.ok || !resultado.ok) {
-          throw new Error(resultado.message || "No fue posible consultar HikCentral.");
+      const modo = document.getElementById("dsModoFecha");
+      const inicio = document.getElementById("dsFechaInicio");
+      const fin = document.getElementById("dsFechaFin");
+      const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      if (inicio && !inicio.value) inicio.value = hoy;
+      if (fin && !fin.value) fin.value = hoy;
+      if (modo) modo.onchange = () => {
+        const rango = document.getElementById("dsRangoFechas");
+        if (rango) {
+          rango.classList.toggle("d-none", modo.value !== "rango");
+          rango.classList.toggle("d-flex", modo.value === "rango");
         }
-
-        const niveles = (Array.isArray(resultado.data) ? resultado.data : []).filter((nivel) => String(nivel.nombre || "").toLowerCase().includes("estudiantes"));
-        select.innerHTML = "";
-
-        if (niveles.length === 0) {
-          select.innerHTML = '<option value="">No hay niveles de acceso configurados</option>';
-          mensaje.className = "alert alert-warning";
-          mensaje.textContent = "HikCentral respondió correctamente, pero no devolvió niveles de acceso de tipo control.";
-          return;
-        }
-
-        select.add(new Option("Seleccione un nivel de acceso", ""));
-        niveles.forEach((nivel) => {
-          select.add(new Option(nivel.nombre, nivel.id));
-        });
-
-        if (nivelSeleccionado && niveles.some((nivel) => nivel.id === nivelSeleccionado)) {
-          select.value = nivelSeleccionado;
-        }
-
-        select.onchange = cargarConteosNivelesAcceso;
-        mensaje.className = "alert alert-success";
-        mensaje.textContent = "Se cargaron " + niveles.length + " nivel(es) de acceso desde HikCentral. Seleccione uno para consultar sus alumnos.";
-      } catch (error) {
-        console.error("Error cargando niveles de acceso:", error);
-        select.innerHTML = '<option value="">Error al cargar niveles de acceso</option>';
-        mensaje.className = "alert alert-danger";
-        mensaje.textContent = "Error al consultar HikCentral: " + (error.message || "Error desconocido") + " Revisa también la consola del servidor para más detalles.";
-      } finally {
-        select.disabled = false;
-        await cargarConteosNivelesAcceso();
-      }
+      };
+      await cargarDashboardEventosHik();
     }
 
-    async function cargarConteosNivelesAcceso() {
-      const contenedor = document.getElementById("dsTarjetasNiveles");
-      const mensaje = document.getElementById("dsMensajeConteos");
-      const select = document.getElementById("nivelAccesoSalida");
-      if (!contenedor || !mensaje || !select) return;
-      contenedor.replaceChildren();
-      const nivelId = select.value;
-      if (!nivelId) {
-        mensaje.className = "small text-muted mb-3";
-        mensaje.textContent = "Selecciona un nivel de acceso para ver únicamente los alumnos asociados a ese nivel.";
+    async function cargarDashboardEventosHik() {
+      const mensaje = document.getElementById("dsMensajeEstado");
+      const tabla = document.getElementById("dsTablaEventos");
+      const modo = document.getElementById("dsModoFecha")?.value || "hoy";
+      const inicio = document.getElementById("dsFechaInicio")?.value || "";
+      const fin = document.getElementById("dsFechaFin")?.value || "";
+      if (modo === "rango" && (!inicio || !fin || inicio > fin)) {
+        mensaje.className = "alert alert-warning";
+        mensaje.textContent = "Selecciona un rango de fechas válido.";
         return;
       }
-      mensaje.className = "small text-muted mb-3";
-      mensaje.textContent = "Consultando alumnos del nivel seleccionado...";
+      mensaje.className = "alert alert-info";
+      mensaje.textContent = "Consultando eventos reales de HikCentral...";
+      tabla.innerHTML = '<tr><td colspan="6" class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Consultando HikCentral...</td></tr>';
+      document.getElementById("dsIndicadores").replaceChildren();
       try {
-        const respuesta = await fetch("/api/salidas/niveles-acceso/conteos?nivelId=" + encodeURIComponent(nivelId), { headers: { Accept: "application/json" } });
+        const params = new URLSearchParams();
+        if (modo === "rango") { params.set("fecha_inicio", inicio); params.set("fecha_fin", fin); }
+        const respuesta = await fetch("/api/salidas/dashboard-eventos?" + params.toString(), { headers: { Accept: "application/json" } });
         const resultado = await respuesta.json();
-        if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible obtener los conteos.");
-        const niveles = Array.isArray(resultado.data) ? resultado.data : [];
-        if (!niveles.length) {
-          mensaje.textContent = "HikCentral no devolvió niveles de acceso.";
-          return;
-        }
-        niveles.forEach(nivel => {
-          const columna = document.createElement("div");
-          columna.className = "col-sm-6 col-xl-3";
-          const tarjeta = document.createElement("div");
-          tarjeta.className = "card shadow-sm h-100 border-0";
-          tarjeta.style.cursor = "pointer";
-          tarjeta.setAttribute("role", "button");
-          tarjeta.setAttribute("tabindex", "0");
-          tarjeta.setAttribute("aria-label", "Ver alumnos de " + (nivel.nombre || "nivel seleccionado"));
-          tarjeta.addEventListener("click", () => cargarPersonasNivelAcceso(nivel.id, nivel.nombre));
-          tarjeta.addEventListener("keydown", (evento) => {
-            if (evento.key === "Enter" || evento.key === " ") {
-              evento.preventDefault();
-              cargarPersonasNivelAcceso(nivel.id, nivel.nombre);
-            }
-          });
-          const cuerpo = document.createElement("div");
-          cuerpo.className = "card-body";
-          const nombre = document.createElement("div");
-          nombre.className = "text-muted small mb-2";
-          nombre.textContent = nivel.nombre || "Nivel sin nombre";
-          const total = document.createElement("div");
-          total.className = "display-6 fw-bold";
-          total.textContent = Number.isFinite(Number(nivel.totalAlumnos)) ? String(Number(nivel.totalAlumnos)) : "—";
-          const descripcion = document.createElement("div");
-          descripcion.className = "small text-muted";
-          descripcion.textContent = "alumnos registrados en HikCentral";
-          cuerpo.append(nombre, total, descripcion);
-          tarjeta.append(cuerpo);
-          columna.append(tarjeta);
-          contenedor.append(columna);
-        });
-        mensaje.className = "small text-muted mb-3";
-        mensaje.textContent = "Mostrando el conteo del nivel de acceso seleccionado: " + (niveles[0].nombre || "nivel seleccionado") + ".";
+        if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible consultar los eventos.");
+        eventosDashboardHik = Array.isArray(resultado.data?.eventos) ? resultado.data.eventos : [];
+        eventosFiltradosDashboardHik = eventosDashboardHik;
+        filtroIndicadorDashboardHik = "";
+        renderIndicadoresDashboardHik(resultado.data || {});
+        renderTablaEventosHik(eventosFiltradosDashboardHik);
+        mensaje.className = "alert alert-success";
+        mensaje.textContent = "Consulta completada: " + eventosDashboardHik.length + " eventos recibidos de HikCentral entre " + (resultado.data?.fechaInicio || inicio || "hoy") + " y " + (resultado.data?.fechaFin || fin || "hoy") + ".";
       } catch (error) {
-        console.error("Error cargando conteos de niveles:", error);
-        mensaje.className = "small text-danger";
-        mensaje.textContent = error.message || "Error desconocido al consultar HikCentral.";
+        eventosDashboardHik = [];
+        eventosFiltradosDashboardHik = [];
+        document.getElementById("dsIndicadores").replaceChildren();
+        tabla.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"></td></tr>';
+        tabla.querySelector("td").textContent = error.message || "Error consultando HikCentral.";
+        mensaje.className = "alert alert-danger";
+        mensaje.textContent = "No se pudo cargar el Dashboard: " + (error.message || "Error desconocido");
       }
     }
 
-    async function cargarPersonasNivelAcceso(nivelId, nombreNivel) {
-      const detalle = document.getElementById("dsDetallePersonas");
-      if (!detalle) return;
-      detalle.innerHTML = '<div class="card shadow-sm border-0"><div class="card-body text-muted"><span class="spinner-border spinner-border-sm me-2" role="status"></span>Consultando nombres de alumnos en HikCentral...</div></div>';
-      try {
-        const respuesta = await fetch("/api/salidas/niveles-acceso/personas?nivelId=" + encodeURIComponent(nivelId), { headers: { Accept: "application/json" } });
-        const resultado = await respuesta.json();
-        if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible consultar los alumnos.");
-        const data = resultado.data || {};
-        const alumnos = Array.isArray(data.alumnos) ? data.alumnos : [];
-        const tarjeta = document.createElement("div"); tarjeta.className = "card shadow-sm border-0";
-        const cuerpo = document.createElement("div"); cuerpo.className = "card-body";
-        const titulo = document.createElement("h5"); titulo.className = "mb-1"; titulo.textContent = "Alumnos: " + (data.nivel || nombreNivel || "Nivel seleccionado");
-        const resumen = document.createElement("p"); resumen.className = "text-muted small mb-3"; resumen.textContent = "Nombres obtenidos directamente de HikCentral · " + alumnos.length + " mostrados";
-        cuerpo.append(titulo, resumen);
-        if (!alumnos.length) { const vacio = document.createElement("div"); vacio.className = "alert alert-warning mb-0"; vacio.textContent = "HikCentral no devolvió nombres de alumnos para este nivel. Si el conteo de la tarjeta es mayor que cero, hay que revisar los nombres de campos que devuelve la API."; cuerpo.append(vacio); }
-        else { const lista = document.createElement("ul"); lista.className = "list-group list-group-flush"; alumnos.forEach((alumno) => { const fila = document.createElement("li"); fila.className = "list-group-item px-0"; fila.textContent = alumno.nombre; lista.append(fila); }); cuerpo.append(lista); }
-        tarjeta.append(cuerpo); detalle.replaceChildren(tarjeta); detalle.scrollIntoView({ behavior: "smooth", block: "start" });
-      } catch (error) { detalle.innerHTML = ""; const alerta = document.createElement("div"); alerta.className = "alert alert-danger"; alerta.textContent = "Error consultando alumnos en HikCentral: " + (error.message || "Error desconocido"); detalle.append(alerta); }
+    function campoEventoHik(evento, campos) {
+      for (const campo of campos) {
+        const valor = campo.split(".").reduce((obj, key) => obj && obj[key] !== undefined ? obj[key] : undefined, evento);
+        if (valor !== undefined && valor !== null && valor !== "") return valor;
+      }
+      return "";
     }
+
+    function clasificarEventoDashboardHik(evento) {
+      const texto = [
+        campoEventoHik(evento, ["eventName", "eventTypeName", "eventDescription", "eventType", "eventTypeCode"]),
+        campoEventoHik(evento, ["eventMinor", "eventMinorName", "eventMajor", "eventMajorName"]),
+        campoEventoHik(evento, ["inOrOut", "direction", "cardReaderKind"]),
+        campoEventoHik(evento, ["attendanceStatus", "verifyMode", "currentEvent"])
+      ].join(" ").toLowerCase();
+      const resultado = String(campoEventoHik(evento, ["attendanceStatus", "eventStatus", "status", "result", "checkResult", "eventDescription"])).toLowerCase();
+      const concedido = /conced|allow|success|normal|pass|valid/.test(resultado + " " + texto) && !/denied|deny|invalid|fail|error|reject|deneg/.test(resultado + " " + texto);
+      const denegado = /denied|deny|invalid|fail|error|reject|deneg|abnormal/.test(resultado + " " + texto);
+      const entrada = /entrance|entry|check.?in|entrada|inbound/.test(texto);
+      const salida = /exit|leave|check.?out|salida|outbound/.test(texto);
+      return { texto, concedido, denegado, entrada, salida };
+    }
+
+    function renderIndicadoresDashboardHik(data) {
+      const contenedor = document.getElementById("dsIndicadores");
+      contenedor.replaceChildren();
+      const eventos = eventosDashboardHik;
+      const concedidos = eventos.filter(e => clasificarEventoDashboardHik(e).concedido).length;
+      const denegados = eventos.filter(e => clasificarEventoDashboardHik(e).denegado).length;
+      const entradas = eventos.filter(e => clasificarEventoDashboardHik(e).entrada).length;
+      const salidas = eventos.filter(e => clasificarEventoDashboardHik(e).salida).length;
+      const indicadores = [
+        { id: "todos", titulo: "Eventos de acceso", total: eventos.length, clase: "primary" },
+        { id: "concedidos", titulo: "Accesos concedidos", total: concedidos, clase: "success" },
+        { id: "denegados", titulo: "Accesos denegados / con error", total: denegados, clase: "danger" },
+        { id: "entradas", titulo: "Eventos de entrada", total: entradas, clase: "info" },
+        { id: "salidas", titulo: "Eventos de salida", total: salidas, clase: "warning" }
+      ];
+      indicadores.forEach(item => {
+        const columna = document.createElement("div"); columna.className = "col-sm-6 col-xl-3";
+        const boton = document.createElement("button"); boton.type = "button"; boton.className = "card shadow-sm border-0 h-100 w-100 text-start";
+        boton.style.cursor = "pointer"; boton.addEventListener("click", () => seleccionarIndicadorDashboardHik(item.id, item.titulo));
+        const cuerpo = document.createElement("div"); cuerpo.className = "card-body";
+        const titulo = document.createElement("div"); titulo.className = "small text-muted mb-2"; titulo.textContent = item.titulo;
+        const total = document.createElement("div"); total.className = "display-6 fw-bold"; total.textContent = String(item.total);
+        const pct = document.createElement("div"); pct.className = "small text-muted"; pct.textContent = eventos.length ? (item.total / eventos.length * 100).toLocaleString("es-EC", { maximumFractionDigits: 2 }) + "% de eventos" : "Sin eventos en el periodo";
+        cuerpo.append(titulo, total, pct); boton.append(cuerpo); columna.append(boton); contenedor.append(columna);
+      });
+      if (!eventos.length) {
+        const vacio = document.createElement("div"); vacio.className = "col-12 alert alert-warning";
+        vacio.textContent = "HikCentral no devolvió eventos para este periodo. No se calculan porcentajes sobre un conjunto vacío.";
+        contenedor.append(vacio);
+      }
+    }
+
+    function seleccionarIndicadorDashboardHik(id, titulo) {
+      filtroIndicadorDashboardHik = id;
+      eventosFiltradosDashboardHik = eventosDashboardHik.filter(evento => {
+        const c = clasificarEventoDashboardHik(evento);
+        if (id === "concedidos") return c.concedido;
+        if (id === "denegados") return c.denegado;
+        if (id === "entradas") return c.entrada;
+        if (id === "salidas") return c.salida;
+        return true;
+      });
+      document.getElementById("dsTituloListado").textContent = titulo + " (" + eventosFiltradosDashboardHik.length + ")";
+      renderTablaEventosHik(eventosFiltradosDashboardHik);
+    }
+
+    function renderTablaEventosHik(eventos) {
+      const tabla = document.getElementById("dsTablaEventos");
+      tabla.replaceChildren();
+      if (!eventos.length) {
+        const fila = document.createElement("tr"); const celda = document.createElement("td");
+        celda.colSpan = 6; celda.className = "text-center text-muted py-4"; celda.textContent = "No hay eventos para mostrar.";
+        fila.append(celda); tabla.append(fila); return;
+      }
+      eventos.forEach(evento => {
+        const fila = document.createElement("tr");
+        const persona = campoEventoHik(evento, ["personName", "name", "employeeName", "personInfo.personName", "person.name"]);
+        const codigo = campoEventoHik(evento, ["personId", "employeeNo", "employeeNoString", "cardNo", "certificateNo"]);
+        const fecha = campoEventoHik(evento, ["eventTime", "time", "eventDate", "dateTime", "occurTime"]);
+        const puerta = campoEventoHik(evento, ["doorName", "devName", "doorNo", "readerName", "srcName", "deviceName"]);
+        const tipo = campoEventoHik(evento, ["eventName", "eventTypeName", "eventDescription", "eventType", "eventMinorName"]);
+        const resultado = campoEventoHik(evento, ["attendanceStatus", "eventStatus", "status", "result", "checkResult", "eventDescription"]);
+        [persona || "Nombre no incluido en el evento", codigo, fecha, puerta, tipo, resultado].forEach(valor => {
+          const celda = document.createElement("td"); celda.textContent = String(valor || "—"); fila.append(celda);
+        });
+        tabla.append(fila);
+      });
+    }
+
+    function filtrarTablaEventosHik() {
+      const texto = (document.getElementById("dsBuscarEvento")?.value || "").toLowerCase().trim();
+      const base = filtroIndicadorDashboardHik ? eventosDashboardHik.filter(evento => {
+        const c = clasificarEventoDashboardHik(evento);
+        if (filtroIndicadorDashboardHik === "concedidos") return c.concedido;
+        if (filtroIndicadorDashboardHik === "denegados") return c.denegado;
+        if (filtroIndicadorDashboardHik === "entradas") return c.entrada;
+        if (filtroIndicadorDashboardHik === "salidas") return c.salida;
+        return true;
+      }) : eventosDashboardHik;
+      eventosFiltradosDashboardHik = base.filter(evento => JSON.stringify(evento).toLowerCase().includes(texto));
+      renderTablaEventosHik(eventosFiltradosDashboardHik);
+    }
+
     async function inicializarLower() {
       const selectCurso = document.getElementById("selectCursoLower");
       const selectParalelo = document.getElementById("selectParaleloLower");
