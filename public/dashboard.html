@@ -378,6 +378,52 @@
         mensaje.textContent = "Error al consultar HikCentral: " + (error.message || "Error desconocido") + " Revisa también la consola del servidor para más detalles.";
       } finally {
         select.disabled = false;
+        await cargarConteosNivelesAcceso();
+      }
+    }
+
+    async function cargarConteosNivelesAcceso() {
+      const contenedor = document.getElementById("dsTarjetasNiveles");
+      const mensaje = document.getElementById("dsMensajeConteos");
+      if (!contenedor || !mensaje) return;
+      contenedor.replaceChildren();
+      mensaje.textContent = "Consultando conteos de HikCentral...";
+      try {
+        const respuesta = await fetch("/api/salidas/niveles-acceso/conteos", { headers: { Accept: "application/json" } });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible obtener los conteos.");
+        const niveles = Array.isArray(resultado.data) ? resultado.data : [];
+        if (!niveles.length) {
+          mensaje.textContent = "HikCentral no devolvió niveles de acceso.";
+          return;
+        }
+        niveles.forEach(nivel => {
+          const columna = document.createElement("div");
+          columna.className = "col-sm-6 col-xl-3";
+          const tarjeta = document.createElement("div");
+          tarjeta.className = "card shadow-sm h-100 border-0";
+          const cuerpo = document.createElement("div");
+          cuerpo.className = "card-body";
+          const nombre = document.createElement("div");
+          nombre.className = "text-muted small mb-2";
+          nombre.textContent = nivel.nombre || "Nivel sin nombre";
+          const total = document.createElement("div");
+          total.className = "display-6 fw-bold";
+          total.textContent = Number.isFinite(Number(nivel.totalAlumnos)) ? String(Number(nivel.totalAlumnos)) : "—";
+          const descripcion = document.createElement("div");
+          descripcion.className = "small text-muted";
+          descripcion.textContent = "alumnos registrados en HikCentral";
+          cuerpo.append(nombre, total, descripcion);
+          tarjeta.append(cuerpo);
+          columna.append(tarjeta);
+          contenedor.append(columna);
+        });
+        const totalGeneral = niveles.reduce((suma, nivel) => suma + (Number(nivel.totalAlumnos) || 0), 0);
+        mensaje.textContent = "Se consultaron " + niveles.length + " niveles. Suma de asociaciones por nivel: " + totalGeneral + ".";
+      } catch (error) {
+        console.error("Error cargando conteos de niveles:", error);
+        mensaje.className = "small text-danger";
+        mensaje.textContent = error.message || "Error desconocido al consultar HikCentral.";
       }
     }
 
