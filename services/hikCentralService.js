@@ -220,3 +220,64 @@ export async function obtenerConteoPersonasNivelesHik(nivelId = "") {
 
   return conteos;
 }
+
+/**
+ * Devuelve únicamente los nombres de las personas asociadas al nivel seleccionado.
+ */
+export async function obtenerPersonasNivelAccesoHik(nivelId = "") {
+  if (!nivelId) throw new Error("Selecciona un nivel de acceso.");
+  const niveles = await obtenerNivelesAccesoHik();
+  const nivel = niveles.find((item) => item.id === String(nivelId));
+  if (!nivel) throw new Error("El nivel de acceso seleccionado no existe en HikCentral.");
+
+  const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+  const personas = [];
+  let pageNo = 1;
+  let total = Infinity;
+  const pageSize = 100;
+
+  while (personas.length < total) {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomUUID();
+    const body = { pageNo, pageSize, type: 1, privilegeGroupId: String(nivel.id) };
+    const signature = generarFirma("POST", ACCESS_LEVEL_PERSONS_PATH, timestamp, nonce);
+    let response;
+    try {
+      response = await axios.post(HIK_BASE_URL + ACCESS_LEVEL_PERSONS_PATH, body, {
+        httpsAgent,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "*/*",
+          "X-Ca-Key": HIK_APP_KEY,
+          "X-Ca-Timestamp": timestamp,
+          "X-Ca-Nonce": nonce,
+          "X-Ca-Signature": signature,
+          "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp"
+        },
+        timeout: 20000
+      });
+    } catch (error) {
+      const result = error.response?.data;
+      throw new Error(`No se pudo consultar los alumnos de "${nivel.nombre}". ${result ? `HikCentral code=${result.code ?? "sin código"}; msg=${result.msg ?? "sin mensaje"}.` : error.message}`);
+    }
+
+    const result = response.data;
+    if (!result || String(result.code) !== "0") {
+      throw new Error(`HikCentral rechazó la consulta de alumnos de "${nivel.nombre}": code=${result?.code ?? "sin código"}; msg=${result?.msg || "respuesta no válida"}.`);
+    }
+
+    const data = result.data || {};
+    const list = Array.isArray(data.list) ? data.list : [];
+    total = Number(data.total ?? list.length);
+    personas.push(...list);
+    if (list.length === 0 || list.length < pageSize || personas.length >= total) break;
+    pageNo += 1;
+  }
+
+  const nombres = personas.map((persona) => ({
+    nombre: String(persona.personName ?? persona.name ?? persona.person?.personName ?? persona.person?.name ?? "").trim()
+  })).filter((persona) => persona.nombre);
+
+  return { nivel: nivel.nombre, total: Number.isFinite(total) ? total : nombres.length, alumnos: nombres };
+}
+
