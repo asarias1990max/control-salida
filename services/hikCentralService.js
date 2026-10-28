@@ -197,30 +197,18 @@ export async function sincronizarNivelesYAsignacionesHik() {
   if (!HIK_BASE_URL || !HIK_APP_KEY || !HIK_APP_SECRET) throw new Error("Falta configurar HikCentral.");
   const niveles = await obtenerNivelesAccesoHik();
   const listaNiveles = [];
-  const horariosHik = [];
-  let paginaHorarios = 1;
-  let totalHorarios = Infinity;
-  let errorConsultaHorarios = "";
-  try {
-    while (horariosHik.length < totalHorarios) {
-      const dataHorarios = await postArtemis("/artemis/api/acs/v1/schedule/accessSchedule/get", { pageNo: paginaHorarios, pageSize: 500 });
-      const pagina = Array.isArray(dataHorarios.list) ? dataHorarios.list : [];
-      if (paginaHorarios === 1) totalHorarios = Number(dataHorarios.total ?? pagina.length);
-      horariosHik.push(...pagina);
-      if (!pagina.length || pagina.length < 500 || horariosHik.length >= totalHorarios) break;
-      paginaHorarios++;
-    }
-  } catch (error) {
-    errorConsultaHorarios = error.message;
-    console.warn("[HikCentral] No se pudieron consultar plantillas de horario; se utilizará el nombre que venga en cada nivel:", error.message);
-  }
-  const horarioPorId = new Map(horariosHik.map(h => [String(h.indexCode ?? ""), h]).filter(([id]) => id));
-  const filasHorarios = horariosHik.map(h => ({
-    index_code: String(h.indexCode ?? ""),
-    nombre: String(h.name ?? "Horario sin nombre"),
-    datos_originales: h,
-    sincronizado_en: new Date().toISOString()
-  })).filter(h => h.index_code);
+  // La respuesta documentada de privilege/group ya incluye timeSchedule.indexCode y timeSchedule.name.
+  // No se llama a un endpoint de plantillas separado porque no se ha verificado en la referencia OpenAPI disponible.
+  const filasHorarios = niveles.map(nivel => {
+    const horario = nivel.timeSchedule || {};
+    return {
+      index_code: String(horario.indexCode ?? ""),
+      nombre: String(horario.name ?? "Horario sin nombre"),
+      datos_originales: horario,
+      sincronizado_en: new Date().toISOString()
+    };
+  }).filter(h => h.index_code);
+  const horarioPorId = new Map(filasHorarios.map(h => [h.index_code, h]));
   const asignaciones = [];
   const estudiantesResult = await supabase.from("estudiantes")
     .select("id,codigo,codigo_hik,apellidos,nombres,estado")
@@ -325,7 +313,6 @@ export async function sincronizarNivelesYAsignacionesHik() {
     personasConsultadas,
     personasSinCoincidencia,
     horariosHikCentral: filasHorarios.length,
-    errorConsultaHorarios: errorConsultaHorarios || null,
     horariosDetectadosDesdeNombreDescripcion: listaNiveles.filter(n => n.hora_salida).length
   };
 }
