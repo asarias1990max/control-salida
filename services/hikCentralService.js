@@ -558,6 +558,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
 
   const puertas = await obtenerPuertasHik();
   const codigosDisponibles = puertas.map(p => p.doorIndexCode);
+  const puertaPorCodigo = new Map(puertas.map(p => [String(p.doorIndexCode), String(p.doorName || p.doorIndexCode)]));
   const solicitados = Array.isArray(codigosPuerta) ? codigosPuerta.map(String) : [];
   const doorIndexCodes = solicitados.length
     ? codigosDisponibles.filter(code => solicitados.includes(code))
@@ -710,7 +711,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     const codigoHik = String(evento.studentHikCode || evento.personCode || evento.personInfo?.personCode || evento.employeeNo || evento.employeeNoString || evento.personId || evento.personInfo?.personId || "").trim();
     if (!fechaEvento || !codigoHik || !evento.studentId) return [];
     const puertaCodigo = String(evento.doorIndexCode || evento.doorCode || evento.doorNo || "");
-    const puertaNombre = String(evento.doorName || evento.devName || evento.readerName || evento.srcName || evento.deviceName || "");
+    const puertaNombre = String(evento.doorName || evento.devName || evento.readerName || evento.srcName || evento.deviceName || puertaPorCodigo.get(puertaCodigo) || "");
     const tipoEvento = String(evento.eventName || evento.eventTypeName || evento.eventDescription || evento.eventMinorName || "");
     const tipoEventoCodigo = String(evento.eventType || evento.eventTypeCode || "");
     const resultado = String(evento.attendanceStatus || evento.eventStatus || evento.status || evento.result || evento.checkResult || evento.eventDescription || "");
