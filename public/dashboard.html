@@ -331,7 +331,6 @@
 
     let eventosDashboardHik = [];
     let eventosFiltradosDashboardHik = [];
-    let filtroIndicadorDashboardHik = "";
 
     async function inicializarDashboardSalidas() {
       const modo = document.getElementById("dsModoFecha");
@@ -373,7 +372,6 @@
         if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible consultar los eventos.");
         eventosDashboardHik = Array.isArray(resultado.data?.eventos) ? resultado.data.eventos : [];
         eventosFiltradosDashboardHik = eventosDashboardHik;
-        filtroIndicadorDashboardHik = "";
         renderTablaEventosHik(eventosFiltradosDashboardHik);
         mensaje.className = "alert alert-success";
         mensaje.textContent = "Consulta completada: " + eventosDashboardHik.length + " eventos recibidos de HikCentral entre " + (resultado.data?.fechaInicio || inicio || "hoy") + " y " + (resultado.data?.fechaFin || fin || "hoy") + ".";
@@ -410,42 +408,6 @@
       return { texto, concedido, denegado, entrada, salida };
     }
 
-    function renderIndicadoresDashboardHik(data) {
-      const contenedor = document.getElementById("dsIndicadores");
-      contenedor.replaceChildren();
-      const eventos = eventosDashboardHik;
-      const indicadores = [];
-      indicadores.forEach(item => {
-        const columna = document.createElement("div"); columna.className = "col-sm-6 col-xl-3";
-        const boton = document.createElement("button"); boton.type = "button"; boton.className = "card shadow-sm border-0 h-100 w-100 text-start";
-        boton.style.cursor = "pointer"; boton.addEventListener("click", () => seleccionarIndicadorDashboardHik(item.id, item.titulo));
-        const cuerpo = document.createElement("div"); cuerpo.className = "card-body";
-        const titulo = document.createElement("div"); titulo.className = "small text-muted mb-2"; titulo.textContent = item.titulo;
-        const total = document.createElement("div"); total.className = "display-6 fw-bold"; total.textContent = String(item.total);
-        const pct = document.createElement("div"); pct.className = "small text-muted"; pct.textContent = eventos.length ? (item.total / eventos.length * 100).toLocaleString("es-EC", { maximumFractionDigits: 2 }) + "% de eventos" : "Sin eventos en el periodo";
-        cuerpo.append(titulo, total, pct); boton.append(cuerpo); columna.append(boton); contenedor.append(columna);
-      });
-      if (!eventos.length) {
-        const vacio = document.createElement("div"); vacio.className = "col-12 alert alert-warning";
-        vacio.textContent = "HikCentral no devolvió eventos para este periodo. No se calculan porcentajes sobre un conjunto vacío.";
-        contenedor.append(vacio);
-      }
-    }
-
-    function seleccionarIndicadorDashboardHik(id, titulo) {
-      filtroIndicadorDashboardHik = id;
-      eventosFiltradosDashboardHik = eventosDashboardHik.filter(evento => {
-        const c = clasificarEventoDashboardHik(evento);
-        if (id === "concedidos") return c.concedido;
-        if (id === "denegados") return c.denegado;
-        if (id === "entradas") return c.entrada;
-        if (id === "salidas") return c.salida;
-        return true;
-      });
-      document.getElementById("dsTituloListado").textContent = titulo + " (" + eventosFiltradosDashboardHik.length + ")";
-      renderTablaEventosHik(eventosFiltradosDashboardHik);
-    }
-
     function renderTablaEventosHik(eventos) {
       const tabla = document.getElementById("dsTablaEventos");
       tabla.replaceChildren();
@@ -471,15 +433,7 @@
 
     function filtrarTablaEventosHik() {
       const texto = (document.getElementById("dsBuscarEvento")?.value || "").toLowerCase().trim();
-      const base = filtroIndicadorDashboardHik ? eventosDashboardHik.filter(evento => {
-        const c = clasificarEventoDashboardHik(evento);
-        if (filtroIndicadorDashboardHik === "concedidos") return c.concedido;
-        if (filtroIndicadorDashboardHik === "denegados") return c.denegado;
-        if (filtroIndicadorDashboardHik === "entradas") return c.entrada;
-        if (filtroIndicadorDashboardHik === "salidas") return c.salida;
-        return true;
-      }) : eventosDashboardHik;
-      eventosFiltradosDashboardHik = base.filter(evento => JSON.stringify(evento).toLowerCase().includes(texto));
+      eventosFiltradosDashboardHik = eventosDashboardHik.filter(evento => JSON.stringify(evento).toLowerCase().includes(texto));
       renderTablaEventosHik(eventosFiltradosDashboardHik);
     }
 
