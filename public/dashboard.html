@@ -94,7 +94,7 @@
   </style>
 </head>
 
-<body>
+<body class="sidebar-collapsed">
 
   <div class="sidebar">
     <div class="sidebar-brand"><span class="sidebar-brand-icon"><i class="bi bi-shield-lock"></i></span><h4 class="sidebar-brand-text mb-0">Sistema</h4></div>
@@ -111,7 +111,7 @@
   <div class="main">
     <div class="topbar gap-3">
       <div class="d-flex align-items-center gap-3">
-        <button id="btnToggleMenu" class="sidebar-toggle" type="button" onclick="alternarMenuLateral()" aria-label="Contraer menú" aria-expanded="true" title="Contraer menú"><i class="bi bi-layout-sidebar-inset"></i></button>
+        <button id="btnToggleMenu" class="sidebar-toggle" type="button" onclick="alternarMenuLateral()" aria-label="Expandir menú" aria-expanded="false" title="Expandir menú"><i class="bi bi-layout-sidebar"></i></button>
         <h5 id="tituloSeccion" class="mb-0">Dashboard</h5>
       </div>
       <div id="userName" class="text-muted small"></div>
@@ -186,7 +186,14 @@
 
     function alternarMenuLateral() {
       if (window.matchMedia("(max-width: 768px)").matches) {
-        document.body.classList.toggle("mobile-menu-open");
+        const abierto = document.body.classList.toggle("mobile-menu-open");
+        const boton = document.getElementById("btnToggleMenu");
+        if (boton) {
+          boton.setAttribute("aria-expanded", String(abierto));
+          boton.setAttribute("aria-label", abierto ? "Cerrar menú" : "Abrir menú");
+          boton.title = abierto ? "Cerrar menú" : "Abrir menú";
+          boton.innerHTML = abierto ? '<i class="bi bi-x-lg"></i>' : '<i class="bi bi-layout-sidebar-inset"></i>';
+        }
         return;
       }
       const contraido = document.body.classList.toggle("sidebar-collapsed");
@@ -199,7 +206,18 @@
       }
     }
 
-    function cerrarMenuMovil() { document.body.classList.remove("mobile-menu-open"); }
+    function cerrarMenuMovil() {
+      document.body.classList.remove("mobile-menu-open");
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        const boton = document.getElementById("btnToggleMenu");
+        if (boton) {
+          boton.setAttribute("aria-expanded", "false");
+          boton.setAttribute("aria-label", "Abrir menú");
+          boton.title = "Abrir menú";
+          boton.innerHTML = '<i class="bi bi-layout-sidebar-inset"></i>';
+        }
+      }
+    }
 
     const permisos = usuario.permisos_menu || [];
     const menu = document.getElementById("menuOpciones");
