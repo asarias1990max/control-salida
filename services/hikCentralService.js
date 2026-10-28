@@ -285,13 +285,47 @@ export async function obtenerPersonasNivelAccesoHik(nivelId = "") {
     pageNo += 1;
   }
 
-  const nombres = personas.map((persona) => {
-    const directo = persona.personName ?? persona.name ?? persona.person?.personName ?? persona.person?.name;
-    const apellidos = persona.personFamilyName ?? persona.familyName ?? persona.lastName ?? "";
-    const nombresPropios = persona.personGivenName ?? persona.givenName ?? persona.firstName ?? "";
-    const nombre = directo || [nombresPropios, apellidos].filter(Boolean).join(" ");
-    return { nombre: String(nombre || "").trim() };
-  }).filter((persona) => persona.nombre);
+  // personList de privilegios devuelve únicamente { id }; consultar el detalle
+  // de cada persona usando el endpoint oficial de información por ID.
+  const PERSON_INFO_PATH = "/artemis/api/resource/v1/person/personId/personInfo";
+  const alumnos = [];
+  const ids = [...new Set(personas.map((persona) => String(persona.id ?? "").trim()).filter(Boolean))];
 
-  return { nivel: nivel.nombre, total: Number.isFinite(total) ? total : nombres.length, alumnos: nombres };
+  for (let i = 0; i < ids.length; i += 10) {
+    const lote = ids.slice(i, i + 10);
+    const detalles = await Promise.all(lote.map(async (personId) => {
+      const timestamp = Date.now().toString();
+      const nonce = crypto.randomUUID();
+      const signature = generarFirma("POST", PERSON_INFO_PATH, timestamp, nonce);
+      try {
+        const response = await axios.post(HIK_BASE_URL + PERSON_INFO_PATH, { personId }, {
+          httpsAgent,
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "X-Ca-Key": HIK_APP_KEY,
+            "X-Ca-Timestamp": timestamp,
+            "X-Ca-Nonce": nonce,
+            "X-Ca-Signature": signature,
+            "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp"
+          },
+          timeout: 20000
+        });
+        const result = response.data;
+        if (!result || String(result.code) !== "0") {
+          console.error("[HikCentral] No se pudo obtener detalle de persona", personId, "code=", result?.code, "msg=", result?.msg);
+          return null;
+        }
+        const info = result.data || {};
+        const nombre = info.personName || [info.personGivenName, info.personFamilyName].filter(Boolean).join(" ");
+        return nombre ? { nombre: String(nombre).trim() } : null;
+      } catch (error) {
+        console.error("[HikCentral] Error obteniendo detalle de persona", personId, error.response?.data?.msg || error.message);
+        return null;
+      }
+    }));
+    alumnos.push(...detalles.filter(Boolean));
+  }
+
+  return { nivel: nivel.nombre, total: Number.isFinite(total) ? total : ids.length, alumnos };
 }
