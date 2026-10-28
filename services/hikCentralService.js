@@ -352,15 +352,20 @@ export async function obtenerPuertasHik() {
     const result = response.data;
     if (!result || String(result.code) !== "0") throw new Error("No se pudieron obtener las puertas de HikCentral: code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
     const data = result.data || {};
-    const list = Array.isArray(data.list) ? data.list : [];
-    total = Number(data.total ?? list.length);
+    const list = Array.isArray(data.list) ? data.list
+      : Array.isArray(data.acsDoorList) ? data.acsDoorList
+      : Array.isArray(data.records) ? data.records
+      : Array.isArray(data.pageData) ? data.pageData
+      : [];
+    if (pageNo === 1) console.log("[HikCentral] acsDoorList estructura:", JSON.stringify({ dataKeys: Object.keys(data), listLength: list.length, firstDoor: list[0] || null, total: data.total }));
+    total = Number(data.total ?? data.totalNum ?? list.length);
     puertas.push(...list);
     if (!list.length || list.length < pageSize || puertas.length >= total) break;
     pageNo++;
   }
   return puertas.map(p => ({
-    doorIndexCode: String(p.doorIndexCode ?? ""),
-    doorName: String(p.doorName ?? p.name ?? p.doorNo ?? p.doorIndexCode ?? "Puerta sin nombre")
+    doorIndexCode: String(p.doorIndexCode ?? p.indexCode ?? p.doorCode ?? ""),
+    doorName: String(p.doorName ?? p.acsDoorName ?? p.name ?? p.doorNo ?? p.doorIndexCode ?? p.indexCode ?? p.doorCode ?? "Puerta sin nombre")
   })).filter(p => p.doorIndexCode);
 }
 
