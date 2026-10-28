@@ -347,7 +347,10 @@
         }
       };
       await cargarPuertasDashboardHik();
-      await cargarDashboardEventosHik();
+      const selectorPuertas = document.getElementById("dsPuertas");
+      if (selectorPuertas && selectorPuertas.options.length > 0 && selectorPuertas.options[0].value) {
+        await cargarDashboardEventosHik();
+      }
     }
 
     async function cargarPuertasDashboardHik() {
@@ -359,14 +362,19 @@
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudieron cargar las puertas.");
         selector.replaceChildren();
-        (Array.isArray(result.data) ? result.data : []).forEach(puerta => {
+        const puertas = Array.isArray(result.data) ? result.data : [];
+        console.log("[Dashboard] Puertas recibidas:", puertas.length, puertas[0] || null);
+        puertas.forEach(puerta => {
+          const codigo = puerta.doorIndexCode ?? puerta.indexCode ?? puerta.doorCode;
+          if (codigo === undefined || codigo === null || String(codigo).trim() === "") return;
+          const nombre = puerta.doorName ?? puerta.acsDoorName ?? puerta.name ?? puerta.doorNo ?? codigo;
           const option = document.createElement("option");
-          option.value = String(puerta.doorIndexCode);
-          option.textContent = puerta.doorName + " (" + puerta.doorIndexCode + ")";
+          option.value = String(codigo);
+          option.textContent = String(nombre) + " (" + String(codigo) + ")";
           option.selected = true;
           selector.append(option);
         });
-        if (!selector.options.length) throw new Error("HikCentral no devolvió puertas.");
+        if (!selector.options.length) throw new Error("La API respondió, pero no se reconocieron códigos de puerta. Revisa la consola del servidor: [HikCentral] acsDoorList estructura.");
       } catch (error) {
         selector.innerHTML = '<option value="">Error al cargar puertas</option>';
         const mensaje = document.getElementById("dsMensajeEstado");
