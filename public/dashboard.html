@@ -347,10 +347,90 @@
         }
       };
       await cargarConfiguracionHorariosHik();
+      await cargarNivelesEstudiantesHik();
       await cargarPuertasDashboardHik();
       const selectorPuertas = document.getElementById("dsPuertas");
       if (selectorPuertas && selectorPuertas.options.length > 0 && selectorPuertas.options[0].value) {
         await cargarDashboardEventosHik();
+      }
+    }
+
+    function horaTextoHik(valor) {
+      if (!valor) return "No identificada";
+      return String(valor).slice(0, 5);
+    }
+
+    async function cargarNivelesEstudiantesHik() {
+      const cuerpo = document.getElementById("dsTablaNiveles");
+      const estado = document.getElementById("dsEstadoNiveles");
+      if (!cuerpo || !estado) return;
+      estado.textContent = "Consultando asignaciones guardadas...";
+      try {
+        const response = await fetch("/api/salidas/dashboard-niveles-estudiantes", { headers: { Accept: "application/json" } });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || "No se pudieron consultar los niveles.");
+        const rows = Array.isArray(result.data) ? result.data : [];
+        cuerpo.replaceChildren();
+        if (!rows.length) {
+          cuerpo.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No hay asignaciones sincronizadas. Pulsa «Sincronizar desde HikCentral».</td></tr>';
+          estado.textContent = "No hay asignaciones guardadas en Supabase.";
+          return;
+        }
+        rows.forEach(row => {
+          const tr = document.createElement("tr");
+          const curso = [row.curso, row.paralelo ? "Paralelo " + row.paralelo : ""].filter(Boolean).join(" · ");
+          const horario = row.hora_inicio_configurada && row.hora_fin_configurada
+            ? horaTextoHik(row.hora_inicio_configurada) + "–" + horaTextoHik(row.hora_fin_configurada)
+            : "Pendiente de verificar";
+          const valores = [
+            row.estudiante || "Sin nombre",
+            row.codigo || row.codigo_hik || "—",
+            curso || row.seccion || "—",
+            row.nivel_acceso || "Sin nivel",
+            row.hora_salida_nivel ? horaTextoHik(row.hora_salida_nivel) : "No viene en nombre/descripción",
+            horario,
+            row.fuente_horario || "Por verificar"
+          ];
+          valores.forEach((valor, index) => {
+            const td = document.createElement("td");
+            td.textContent = String(valor);
+            if (index === 3) td.style.minWidth = "230px";
+            tr.append(td);
+          });
+          cuerpo.append(tr);
+        });
+        estado.textContent = rows.length + " asignaciones estudiante/nivel guardadas. El horario detectado desde la API se separa del horario escolar configurado.";
+      } catch (error) {
+        estado.textContent = error.message || "Error consultando asignaciones.";
+        estado.className = "small text-danger mb-2";
+      }
+    }
+
+    async function sincronizarNivelesEstudiantesHik() {
+      const boton = document.getElementById("dsBtnSincronizarNiveles");
+      const estado = document.getElementById("dsEstadoNiveles");
+      if (!boton || !estado) return;
+      boton.disabled = true;
+      boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Sincronizando...';
+      estado.className = "small text-muted mb-2";
+      estado.textContent = "Consultando niveles, estudiantes asignados y detalles de personas en HikCentral. Puede tardar un poco...";
+      try {
+        const response = await fetch("/api/salidas/dashboard-niveles/sincronizar", {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo sincronizar HikCentral.");
+        const d = result.data || {};
+        estado.textContent = "Sincronización terminada: " + (d.nivelesSincronizados || 0) + " niveles; " + (d.asignacionesSincronizadas || 0) + " asignaciones vinculadas; " + (d.personasSinCoincidencia || 0) + " personas sin coincidencia con Supabase; " + (d.horariosDetectadosDesdeNombreDescripcion || 0) + " horarios identificados directamente en la API.";
+        await cargarNivelesEstudiantesHik();
+      } catch (error) {
+        estado.className = "small text-danger mb-2";
+        estado.textContent = error.message || "Error al sincronizar niveles de acceso.";
+      } finally {
+        boton.disabled = false;
+        boton.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Sincronizar desde HikCentral';
       }
     }
 
