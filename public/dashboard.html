@@ -350,7 +350,7 @@
           throw new Error(resultado.message || "No fue posible consultar HikCentral.");
         }
 
-        const niveles = Array.isArray(resultado.data) ? resultado.data : [];
+        const niveles = (Array.isArray(resultado.data) ? resultado.data : []).filter((nivel) => String(nivel.nombre || "").toLowerCase().includes("estudiantes"));
         select.innerHTML = "";
 
         if (niveles.length === 0) {
