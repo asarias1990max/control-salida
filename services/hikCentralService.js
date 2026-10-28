@@ -393,5 +393,48 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
     if (!list.length || list.length < pageSize || eventos.length >= total) break;
     pageNo++;
   }
-  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventos.length, eventos };
+  // Algunos modelos de HikCentral no incluyen personName en el evento.
+  // Resolver los personId disponibles mediante el endpoint de detalle de persona.
+  const personInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
+  const idsSinNombre = [...new Set(eventos
+    .filter(e => !(e.personName || e.name || e.employeeName || e.personInfo?.personName || e.person?.name))
+    .map(e => e.personId || e.personInfo?.personId)
+    .filter(v => v !== undefined && v !== null && String(v).trim() !== "")
+    .map(String))];
+  const nombresPorId = new Map();
+
+  for (let i = 0; i < idsSinNombre.length; i += 10) {
+    const lote = idsSinNombre.slice(i, i + 10);
+    const detalles = await Promise.all(lote.map(async personId => {
+      const ts = Date.now().toString();
+      const nonceInfo = crypto.randomUUID();
+      const firmaInfo = generarFirma("POST", personInfoPath, ts, nonceInfo);
+      try {
+        const respInfo = await axios.post(HIK_BASE_URL + personInfoPath, { personId }, {
+          httpsAgent, timeout: 20000,
+          headers: { "Content-Type": "application/json", "Accept": "*/*", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": ts, "X-Ca-Nonce": nonceInfo, "X-Ca-Signature": firmaInfo, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
+        });
+        const resultInfo = respInfo.data;
+        if (!resultInfo || String(resultInfo.code) !== "0") {
+          console.warn("[HikCentral] No se pudo resolver nombre para personId", personId, resultInfo?.msg || resultInfo?.code);
+          return null;
+        }
+        const info = resultInfo.data || {};
+        const nombre = info.personName || [info.personGivenName, info.personFamilyName].filter(Boolean).join(" ") || info.name;
+        return nombre ? [personId, String(nombre).trim()] : null;
+      } catch (error) {
+        console.warn("[HikCentral] Error al resolver personId", personId, error.response?.data?.msg || error.message);
+        return null;
+      }
+    }));
+    detalles.filter(Boolean).forEach(([id, nombre]) => nombresPorId.set(id, nombre));
+  }
+
+  const eventosConNombre = eventos.map(evento => {
+    const id = evento.personId || evento.personInfo?.personId;
+    const nombre = evento.personName || evento.name || evento.employeeName || evento.personInfo?.personName || evento.person?.name || (id != null ? nombresPorId.get(String(id)) : "");
+    return nombre ? { ...evento, personName: nombre } : evento;
+  });
+
+  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventosConNombre.length, eventos: eventosConNombre };
 }
