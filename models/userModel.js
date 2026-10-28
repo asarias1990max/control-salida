@@ -57,7 +57,7 @@ export async function createOrUpdateGoogleUser(googleUser) {
     return existingUser;
   } else {
     // Crear nuevo usuario
-    const defaultPermissions = ["salida_lower", "salida_middle", "salida_high", "importar_data", "reporte_salidas"];
+    const defaultPermissions = ["salida_lower", "salida_middle", "salida_high", "importar_data", "reporte_salidas", "dashboard_salidas"];
 
     const newUser = {
       email: email,
