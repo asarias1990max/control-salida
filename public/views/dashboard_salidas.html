@@ -56,8 +56,8 @@
   <div class="card shadow-sm border-0 mb-3">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <div><h5 class="mb-1">Control diario de salidas</h5><p class="text-muted small mb-0">Compara la hora esperada del nivel de acceso con el primer evento detectado en las puertas configuradas.</p></div>
-        <button type="button" class="btn btn-outline-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar control</button>
+        <div><h5 class="mb-1">Control diario de salidas</h5><p class="text-muted small mb-0">Compara el horario asignado con los eventos registrados en las puertas de salida.</p></div>
+        <div class="d-flex align-items-end gap-2"><div><label for="dsFechaResumen" class="form-label mb-1">Fecha del control</label><input id="dsFechaResumen" type="date" class="form-control"></div><button type="button" class="btn btn-outline-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button></div>
       </div>
       <div id="dsResumenIndicadores" class="row g-2 mb-3">
         <div class="col-12 text-muted small">Calculando control diario...</div>
