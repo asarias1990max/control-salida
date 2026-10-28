@@ -446,6 +446,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     return [{
       ...evento,
       personName: nombreEstudiante || evento.personName || evento.name || "Estudiante",
+      studentId: estudiante.id,
       studentCode: estudiante.codigo || "",
       studentHikCode: estudiante.codigo_hik,
       studentSection: estudiante.seccion || "",
@@ -517,5 +518,36 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     return nombre ? { ...evento, personName: nombre } : evento;
   });
 
-  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventosConNombre.length, eventos: eventosConNombre };
+  // Persistir eventos en Supabase para conservar el histórico diario sin duplicados.
+  const normalizarFechaEvento = (valor) => {
+    if (!valor) return null;
+    let texto = String(valor).trim();
+    if (!texto) return null;
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(texto)) texto = texto.replace(" ", "T") + "-05:00";
+    else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(texto)) texto += "-05:00";
+    const fecha = new Date(texto);
+    return Number.isNaN(fecha.getTime()) ? null : fecha.toISOString();
+  };
+  const filasEventos = eventosConNombre.flatMap(evento => {
+    const fechaRaw = evento.eventTime || evento.swipeTime || evento.time || evento.eventDate || evento.dateTime || evento.occurTime;
+    const fechaEvento = normalizarFechaEvento(fechaRaw);
+    const codigoHik = String(evento.studentHikCode || evento.personCode || evento.personInfo?.personCode || evento.employeeNo || evento.employeeNoString || evento.personId || evento.personInfo?.personId || "").trim();
+    if (!fechaEvento || !codigoHik || !evento.studentId) return [];
+    const puertaCodigo = String(evento.doorIndexCode || evento.doorCode || evento.doorNo || "");
+    const puertaNombre = String(evento.doorName || evento.devName || evento.readerName || evento.srcName || evento.deviceName || "");
+    const tipoEvento = String(evento.eventName || evento.eventTypeName || evento.eventDescription || evento.eventMinorName || "");
+    const tipoEventoCodigo = String(evento.eventType || evento.eventTypeCode || "");
+    const resultado = String(evento.attendanceStatus || evento.eventStatus || evento.status || evento.result || evento.checkResult || evento.eventDescription || "");
+    const eventId = evento.eventId || evento.eventIndexCode || evento.serialNo || evento.indexCode || null;
+    const huellaBase = eventId ? "hik:" + String(eventId) : [codigoHik, fechaEvento, puertaCodigo, puertaNombre, tipoEventoCodigo, resultado].join("|");
+    const eventFingerprint = crypto.createHash("sha256").update(huellaBase).digest("hex");
+    return [{ event_fingerprint: eventFingerprint, event_id: eventId ? String(eventId) : null, estudiante_id: evento.studentId, codigo_hik: codigoHik, fecha_evento: fechaEvento, puerta_codigo: puertaCodigo || null, puerta_nombre: puertaNombre || null, tipo_evento: tipoEvento || null, tipo_evento_codigo: tipoEventoCodigo || null, resultado: resultado || null, datos_originales: evento, sincronizado_en: new Date().toISOString() }];
+  });
+  for (let i = 0; i < filasEventos.length; i += 200) {
+    const lote = filasEventos.slice(i, i + 200);
+    const { error } = await supabase.from("eventos_hikcentral").upsert(lote, { onConflict: "event_fingerprint", ignoreDuplicates: true });
+    if (error) throw new Error("No se pudieron guardar los eventos de HikCentral en Supabase: " + error.message);
+  }
+  console.log("[HikCentral] Persistencia diaria:", JSON.stringify({ eventosFiltrados: eventosConNombre.length, eventosGuardados: filasEventos.length }));
+  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventosConNombre.length, eventosGuardados: filasEventos.length, eventos: eventosConNombre };
 }
