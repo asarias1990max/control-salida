@@ -14,10 +14,10 @@ const ACCESS_DOORS_PATH = "/artemis/api/resource/v1/acsDoor/acsDoorList";
 const ACCESS_LEVELS_PATH = "/artemis/api/acs/v1/privilege/group";
 const ACCESS_LEVEL_PERSONS_PATH = "/artemis/api/acs/v1/privilege/group/single/personList";
 
-function generarFirma(method, path, timestamp, nonce) {
+function generarFirma(method, path, timestamp, nonce, accept = "*/*") {
   const stringToSign =
     method + "\n" +
-    "*/*\n" +
+    accept + "\n" +
     "application/json\n" +
     "x-ca-key:" + HIK_APP_KEY + "\n" +
     "x-ca-nonce:" + nonce + "\n" +
@@ -352,7 +352,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
     const tsPuertas = Date.now().toString();
     const noncePuertas = crypto.randomUUID();
     const bodyPuertas = { pageNo: paginaPuertas, pageSize: tamanioPuertas };
-    const firmaPuertas = generarFirma("POST", ACCESS_DOORS_PATH, tsPuertas, noncePuertas);
+    const firmaPuertas = generarFirma("POST", ACCESS_DOORS_PATH, tsPuertas, noncePuertas, "application/json");
     const respPuertas = await axios.post(HIK_BASE_URL + ACCESS_DOORS_PATH, bodyPuertas, {
       httpsAgent, timeout: 30000,
       headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": tsPuertas, "X-Ca-Nonce": noncePuertas, "X-Ca-Signature": firmaPuertas, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
