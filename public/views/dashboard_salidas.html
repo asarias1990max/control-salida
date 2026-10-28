@@ -1,27 +1,39 @@
 <div class="container-fluid py-2">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-      <h4 class="mb-1">Dashboard de Salidas</h4>
-      <p class="text-muted mb-0">Consulta los registros según los niveles de acceso configurados en HikCentral.</p>
+      <h4 class="mb-1">Dashboard de Entradas y Salidas</h4>
+      <p class="text-muted mb-0">Consulta de eventos reales de acceso registrados en HikCentral.</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
-      <label for="nivelAccesoSalida" class="form-label mb-0 fw-semibold">Nivel de acceso</label>
-      <select id="nivelAccesoSalida" class="form-select" style="min-width:260px">
-        <option value="">Cargando niveles de HikCentral...</option>
-      </select>
-      <button type="button" class="btn btn-outline-primary" onclick="inicializarDashboardSalidas()" title="Actualizar niveles de acceso">
-        <i class="bi bi-arrow-clockwise"></i>
-      </button>
+    <div class="d-flex flex-wrap align-items-end gap-2">
+      <div>
+        <label for="dsModoFecha" class="form-label mb-1">Periodo</label>
+        <select id="dsModoFecha" class="form-select">
+          <option value="hoy">Hoy</option>
+          <option value="rango">Rango de fechas</option>
+        </select>
+      </div>
+      <div id="dsRangoFechas" class="d-none gap-2">
+        <div><label for="dsFechaInicio" class="form-label mb-1">Desde</label><input id="dsFechaInicio" type="date" class="form-control"></div>
+        <div><label for="dsFechaFin" class="form-label mb-1">Hasta</label><input id="dsFechaFin" type="date" class="form-control"></div>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="cargarDashboardEventosHik()"><i class="bi bi-search me-1"></i> Consultar</button>
     </div>
   </div>
-
-  <div id="dsMensajeEstado" class="alert alert-info" role="status">
-    Consultando niveles de acceso configurados en HikCentral...
+  <div id="dsMensajeEstado" class="alert alert-info" role="status">Preparando consulta de HikCentral...</div>
+  <div id="dsIndicadores" class="row g-3 mb-4"></div>
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div><h5 id="dsTituloListado" class="mb-1">Eventos de acceso</h5><p class="text-muted small mb-0">Selecciona un indicador para filtrar el listado.</p></div>
+        <input id="dsBuscarEvento" class="form-control" style="max-width:300px" placeholder="Buscar estudiante, código o puerta..." oninput="filtrarTablaEventosHik()">
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead><tr><th>Estudiante</th><th>Código</th><th>Fecha y hora</th><th>Punto de acceso</th><th>Tipo de evento</th><th>Resultado</th></tr></thead>
+          <tbody id="dsTablaEventos"><tr><td colspan="6" class="text-center text-muted py-4">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
-
-  <h5 class="mb-3">Información del nivel seleccionado</h5>
-  <div id="dsTarjetasNiveles" class="row g-3 mb-4"><div class="col-12"><div class="card shadow-sm"><div class="card-body">Cargando conteos de HikCentral...</div></div></div></div>
-  <div id="dsMensajeConteos" class="small text-muted mb-3"></div>
-
-  <div id="dsDetallePersonas" class="mt-4"></div>
-
+  <p class="text-muted small mt-3">Los indicadores que requieren horarios autorizados y padrón completo se mostrarán cuando esos datos estén verificados.</p>
+</div>
