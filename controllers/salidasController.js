@@ -76,9 +76,11 @@ export async function registrarSalida(req, res) {
         mensaje: errorHik.message
       });
 
-      return res.status(500).json({
+      console.error("Error asignando estudiante en HikCentral:", errorHik.message);
+      return res.status(502).json({
         ok: false,
-        message: "La salida se guardó, pero falló la asignación en HikCentral"
+        message: "La salida se guardó en el sistema, pero HikCentral no confirmó la asignación: " + errorHik.message,
+        hikcentral_error: errorHik.message
       });
     }
 
@@ -87,7 +89,7 @@ export async function registrarSalida(req, res) {
 
     return res.status(500).json({
       ok: false,
-      message: "Error registrando salida"
+      message: "Error registrando salida: " + (error.message || "Error interno sin detalle")
     });
   }
 }
