@@ -106,7 +106,9 @@ export async function obtenerNivelesAccesoHik() {
 
     const result = response.data;
     if (!result || String(result.code) !== "0") {
-      throw new Error("HikCentral no pudo listar los niveles de acceso: " + (result?.msg || "respuesta no válida"));
+      const traceId = result?.data?.traceId || result?.traceId || result?.data?.trace_id || result?.trace_id;
+      const detalle = "code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida") + (traceId ? "; trace_id=" + traceId : "");
+      throw new Error("HikCentral rechazó la consulta de niveles de acceso (" + detalle + ").");
     }
 
     const data = result.data || {};
