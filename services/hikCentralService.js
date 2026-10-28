@@ -267,17 +267,31 @@ export async function obtenerPersonasNivelAccesoHik(nivelId = "") {
     }
 
     const data = result.data || {};
-    const list = Array.isArray(data.list) ? data.list : [];
-    total = Number(data.total ?? list.length);
+    const list = Array.isArray(data.list) ? data.list
+      : Array.isArray(data.personList) ? data.personList
+      : Array.isArray(data.persons) ? data.persons
+      : Array.isArray(data.records) ? data.records
+      : Array.isArray(data) ? data : [];
+    if (pageNo === 1) {
+      console.log("[HikCentral] personList estructura:", JSON.stringify({
+        dataKeys: data && typeof data === "object" && !Array.isArray(data) ? Object.keys(data) : [],
+        listLength: list.length,
+        firstPersonKeys: list[0] && typeof list[0] === "object" ? Object.keys(list[0]) : []
+      }));
+    }
+    total = Number(data.total ?? data.totalNum ?? list.length);
     personas.push(...list);
     if (list.length === 0 || list.length < pageSize || personas.length >= total) break;
     pageNo += 1;
   }
 
-  const nombres = personas.map((persona) => ({
-    nombre: String(persona.personName ?? persona.name ?? persona.person?.personName ?? persona.person?.name ?? "").trim()
-  })).filter((persona) => persona.nombre);
+  const nombres = personas.map((persona) => {
+    const directo = persona.personName ?? persona.name ?? persona.person?.personName ?? persona.person?.name;
+    const apellidos = persona.personFamilyName ?? persona.familyName ?? persona.lastName ?? "";
+    const nombresPropios = persona.personGivenName ?? persona.givenName ?? persona.firstName ?? "";
+    const nombre = directo || [nombresPropios, apellidos].filter(Boolean).join(" ");
+    return { nombre: String(nombre || "").trim() };
+  }).filter((persona) => persona.nombre);
 
   return { nivel: nivel.nombre, total: Number.isFinite(total) ? total : nombres.length, alumnos: nombres };
 }
-
