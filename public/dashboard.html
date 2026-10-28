@@ -375,7 +375,7 @@
         console.error("Error cargando niveles de acceso:", error);
         select.innerHTML = '<option value="">Error al cargar niveles de acceso</option>';
         mensaje.className = "alert alert-danger";
-        mensaje.textContent = "No se pudieron cargar los niveles desde HikCentral. Verifica la conexión y las credenciales del servidor.";
+        mensaje.textContent = "Error al consultar HikCentral: " + (error.message || "Error desconocido") + " Revisa también la consola del servidor para más detalles.";
       } finally {
         select.disabled = false;
       }
