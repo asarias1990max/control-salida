@@ -346,7 +346,41 @@
           rango.classList.toggle("d-flex", modo.value === "rango");
         }
       };
+      await cargarPuertasDashboardHik();
       await cargarDashboardEventosHik();
+    }
+
+    async function cargarPuertasDashboardHik() {
+      const selector = document.getElementById("dsPuertas");
+      if (!selector) return;
+      selector.innerHTML = '<option value="">Cargando puertas...</option>';
+      try {
+        const response = await fetch("/api/salidas/dashboard-puertas", { headers: { Accept: "application/json" } });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || "No se pudieron cargar las puertas.");
+        selector.replaceChildren();
+        (Array.isArray(result.data) ? result.data : []).forEach(puerta => {
+          const option = document.createElement("option");
+          option.value = String(puerta.doorIndexCode);
+          option.textContent = puerta.doorName + " (" + puerta.doorIndexCode + ")";
+          option.selected = true;
+          selector.append(option);
+        });
+        if (!selector.options.length) throw new Error("HikCentral no devolvió puertas.");
+      } catch (error) {
+        selector.innerHTML = '<option value="">Error al cargar puertas</option>';
+        const mensaje = document.getElementById("dsMensajeEstado");
+        if (mensaje) {
+          mensaje.className = "alert alert-danger";
+          mensaje.textContent = error.message || "Error cargando puertas.";
+        }
+      }
+    }
+
+    function seleccionarTodasPuertasHik(seleccionar) {
+      const selector = document.getElementById("dsPuertas");
+      if (!selector) return;
+      Array.from(selector.options).forEach(option => { option.selected = seleccionar && Boolean(option.value); });
     }
 
     async function cargarDashboardEventosHik() {
@@ -366,6 +400,10 @@
       try {
         const params = new URLSearchParams();
         if (modo === "rango") { params.set("fecha_inicio", inicio); params.set("fecha_fin", fin); }
+        const selectorPuertas = document.getElementById("dsPuertas");
+        const puertasSeleccionadas = selectorPuertas ? Array.from(selectorPuertas.selectedOptions).map(option => option.value) : [];
+        if (!puertasSeleccionadas.length) throw new Error("Selecciona al menos un punto de acceso.");
+        params.set("door_codes", puertasSeleccionadas.join(","));
         const respuesta = await fetch("/api/salidas/dashboard-eventos?" + params.toString(), { headers: { Accept: "application/json" } });
         const resultado = await respuesta.json();
         if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible consultar los eventos.");
