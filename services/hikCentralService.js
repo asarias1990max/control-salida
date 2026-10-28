@@ -149,6 +149,7 @@ export async function obtenerNivelesAccesoHik() {
     id: String(item.privilegeGroupId ?? ""),
     nombre: String(item.privilegeGroupName ?? ""),
     descripcion: String(item.description ?? ""),
+    timeSchedule: item.timeSchedule || null,
     datosOriginales: item
   })).filter((item) => item.id && item.nombre);
 }
@@ -196,6 +197,24 @@ export async function sincronizarNivelesYAsignacionesHik() {
   if (!HIK_BASE_URL || !HIK_APP_KEY || !HIK_APP_SECRET) throw new Error("Falta configurar HikCentral.");
   const niveles = await obtenerNivelesAccesoHik();
   const listaNiveles = [];
+  const horariosHik = [];
+  let paginaHorarios = 1;
+  let totalHorarios = Infinity;
+  while (horariosHik.length < totalHorarios) {
+    const dataHorarios = await postArtemis("/artemis/api/acs/v1/schedule/accessSchedule/get", { pageNo: paginaHorarios, pageSize: 500 });
+    const pagina = Array.isArray(dataHorarios.list) ? dataHorarios.list : [];
+    if (paginaHorarios === 1) totalHorarios = Number(dataHorarios.total ?? pagina.length);
+    horariosHik.push(...pagina);
+    if (!pagina.length || pagina.length < 500 || horariosHik.length >= totalHorarios) break;
+    paginaHorarios++;
+  }
+  const horarioPorId = new Map(horariosHik.map(h => [String(h.indexCode ?? ""), h]).filter(([id]) => id));
+  const filasHorarios = horariosHik.map(h => ({
+    index_code: String(h.indexCode ?? ""),
+    nombre: String(h.name ?? "Horario sin nombre"),
+    datos_originales: h,
+    sincronizado_en: new Date().toISOString()
+  })).filter(h => h.index_code);
   const asignaciones = [];
   const estudiantesResult = await supabase.from("estudiantes")
     .select("id,codigo,codigo_hik,apellidos,nombres,estado")
@@ -212,14 +231,19 @@ export async function sincronizarNivelesYAsignacionesHik() {
 
   for (const nivel of niveles) {
     const groupOriginal = nivel.datosOriginales || {};
-    const textoNivel = [nivel.nombre, nivel.descripcion, JSON.stringify(groupOriginal)].filter(Boolean).join(" ");
+    const scheduleIndex = String(nivel.timeSchedule?.indexCode ?? "");
+    const horarioApi = horarioPorId.get(scheduleIndex) || nivel.timeSchedule || {};
+    const nombreHorarioApi = String(horarioApi.name || nivel.timeSchedule?.name || "");
+    const textoNivel = [nivel.nombre, nivel.descripcion, nombreHorarioApi].filter(Boolean).join(" ");
     const horaSalida = extraerHoraSalidaNivel(textoNivel);
     listaNiveles.push({
       privilege_group_id: nivel.id,
       nombre: nivel.nombre,
       descripcion: nivel.descripcion || null,
       hora_salida: horaSalida,
-      fuente_horario: horaSalida ? "API HikCentral: nombre/descripción del nivel" : null,
+      fuente_horario: horaSalida ? (nombreHorarioApi ? "API HikCentral: plantilla de horario" : "API HikCentral: nombre/descripción del nivel") : null,
+      time_schedule_index_code: scheduleIndex || null,
+      time_schedule_name: nombreHorarioApi || null,
       datos_originales: groupOriginal,
       sincronizado_en: new Date().toISOString()
     });
@@ -273,6 +297,10 @@ export async function sincronizarNivelesYAsignacionesHik() {
   }
 
   if (erroresDetallePersona > 0) throw new Error("La sincronización se detuvo porque falló la consulta de " + erroresDetallePersona + " detalles de personas en HikCentral. No se reemplazaron las asignaciones existentes; revisa el log del servidor.");
+  if (filasHorarios.length) {
+    const { error } = await supabase.from("horarios_acceso_hikcentral").upsert(filasHorarios, { onConflict: "index_code" });
+    if (error) throw new Error("No se pudieron guardar plantillas de horario HikCentral: " + error.message);
+  }
   if (listaNiveles.length) {
     const { error } = await supabase.from("niveles_acceso_hikcentral").upsert(listaNiveles, { onConflict: "privilege_group_id" });
     if (error) throw new Error("No se pudieron guardar niveles HikCentral: " + error.message);
@@ -290,6 +318,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
     asignacionesSincronizadas: asignaciones.length,
     personasConsultadas,
     personasSinCoincidencia,
+    horariosHikCentral: filasHorarios.length,
     horariosDetectadosDesdeNombreDescripcion: listaNiveles.filter(n => n.hora_salida).length
   };
 }
