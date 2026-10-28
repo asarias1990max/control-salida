@@ -8,7 +8,7 @@ import {
   getSalidasPorFecha
 } from "../models/salidaModel.js";
 
-import { asignarEstudianteNivelAcceso } from "../services/hikCentralService.js";
+import { asignarEstudianteNivelAcceso, obtenerNivelesAccesoHik } from "../services/hikCentralService.js";
 
 export async function registrarSalida(req, res) {
   try {
@@ -185,6 +185,22 @@ export async function obtenerSalidasPorFecha(req, res) {
     return res.status(500).json({
       ok: false,
       message: "Error obteniendo salidas por fecha"
+    });
+  }
+}
+
+/* =========================
+   NIVELES DE ACCESO HIKCENTRAL
+========================= */
+export async function obtenerNivelesAcceso(req, res) {
+  try {
+    const niveles = await obtenerNivelesAccesoHik();
+    return res.json({ ok: true, data: niveles });
+  } catch (error) {
+    console.error("Error consultando niveles de acceso HikCentral:", error.message);
+    return res.status(502).json({
+      ok: false,
+      message: "No se pudieron cargar los niveles de acceso desde HikCentral."
     });
   }
 }
