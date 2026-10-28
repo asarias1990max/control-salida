@@ -374,14 +374,12 @@
         eventosDashboardHik = Array.isArray(resultado.data?.eventos) ? resultado.data.eventos : [];
         eventosFiltradosDashboardHik = eventosDashboardHik;
         filtroIndicadorDashboardHik = "";
-        renderIndicadoresDashboardHik(resultado.data || {});
         renderTablaEventosHik(eventosFiltradosDashboardHik);
         mensaje.className = "alert alert-success";
         mensaje.textContent = "Consulta completada: " + eventosDashboardHik.length + " eventos recibidos de HikCentral entre " + (resultado.data?.fechaInicio || inicio || "hoy") + " y " + (resultado.data?.fechaFin || fin || "hoy") + ".";
       } catch (error) {
         eventosDashboardHik = [];
         eventosFiltradosDashboardHik = [];
-        document.getElementById("dsIndicadores").replaceChildren();
         tabla.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"></td></tr>';
         tabla.querySelector("td").textContent = error.message || "Error consultando HikCentral.";
         mensaje.className = "alert alert-danger";
@@ -416,17 +414,7 @@
       const contenedor = document.getElementById("dsIndicadores");
       contenedor.replaceChildren();
       const eventos = eventosDashboardHik;
-      const concedidos = eventos.filter(e => clasificarEventoDashboardHik(e).concedido).length;
-      const denegados = eventos.filter(e => clasificarEventoDashboardHik(e).denegado).length;
-      const entradas = eventos.filter(e => clasificarEventoDashboardHik(e).entrada).length;
-      const salidas = eventos.filter(e => clasificarEventoDashboardHik(e).salida).length;
-      const indicadores = [
-        { id: "todos", titulo: "Eventos de acceso", total: eventos.length, clase: "primary" },
-        { id: "concedidos", titulo: "Accesos concedidos", total: concedidos, clase: "success" },
-        { id: "denegados", titulo: "Accesos denegados / con error", total: denegados, clase: "danger" },
-        { id: "entradas", titulo: "Eventos de entrada", total: entradas, clase: "info" },
-        { id: "salidas", titulo: "Eventos de salida", total: salidas, clase: "warning" }
-      ];
+      const indicadores = [];
       indicadores.forEach(item => {
         const columna = document.createElement("div"); columna.className = "col-sm-6 col-xl-3";
         const boton = document.createElement("button"); boton.type = "button"; boton.className = "card shadow-sm border-0 h-100 w-100 text-start";
