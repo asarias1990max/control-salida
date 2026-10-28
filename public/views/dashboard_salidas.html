@@ -27,6 +27,17 @@
     </div>
   </div>
   <div id="dsMensajeEstado" class="alert alert-info" role="status">Preparando consulta de HikCentral...</div>
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <div><h5 class="mb-1">Horarios configurados de salida</h5><p class="text-muted small mb-0">Reglas iniciales trasladadas desde la pestaña Config del Excel 2026-2027.</p></div>
+        <span class="badge text-bg-light">Hora de Ecuador</span>
+      </div>
+      <div id="dsConfiguracionHorarios" class="row g-2">
+        <div class="col-12 text-muted small">Cargando horarios configurados...</div>
+      </div>
+    </div>
+  </div>
   <div class="card shadow-sm border-0">
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -41,5 +52,5 @@
       </div>
     </div>
   </div>
-  <p class="text-muted small mt-3">La tabla muestra los datos recibidos de HikCentral. No se calculan porcentajes ni indicadores derivados.</p>
+  <p class="text-muted small mt-3">Los eventos se consultan desde HikCentral, se filtran con los estudiantes activos de Supabase y se guardan en el histórico diario sin duplicarlos. Los horarios son reglas de configuración y no sustituyen la hora real del evento.</p>
 </div>
