@@ -312,7 +312,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
     asignacionesSincronizadas: asignaciones.length,
     personasConsultadas,
     personasSinCoincidencia,
-    horariosHikCentral: filasHorarios.length,
+    referenciasHorarioHikCentral: filasHorarios.length,
     horariosDetectadosDesdeNombreDescripcion: listaNiveles.filter(n => n.hora_salida).length
   };
 }
