@@ -19,7 +19,8 @@ router.get("/reporte", obtenerSalidasPorFecha);
 router.get("/niveles-acceso", obtenerNivelesAcceso);
 router.get("/niveles-acceso/conteos", async (req, res) => {
   try {
-    const data = await obtenerConteoPersonasNivelesHik();
+    const nivelId = String(req.query.nivelId || "").trim();
+    const data = await obtenerConteoPersonasNivelesHik(nivelId);
     return res.json({ ok: true, data });
   } catch (error) {
     console.error("Error consultando conteos de HikCentral:", error.message);
