@@ -469,7 +469,7 @@
       eventos.forEach(evento => {
         const fila = document.createElement("tr");
         const persona = campoEventoHik(evento, ["personName", "name", "employeeName", "personInfo.personName", "person.name"]);
-        const codigo = campoEventoHik(evento, ["personId", "employeeNo", "employeeNoString", "cardNo", "certificateNo"]);
+        const codigo = campoEventoHik(evento, ["personCode", "employeeNo", "employeeNoString", "personId", "cardNo", "certificateNo"]);
         const fecha = campoEventoHik(evento, ["eventTime", "time", "eventDate", "dateTime", "occurTime"]);
         const puerta = campoEventoHik(evento, ["doorName", "devName", "doorNo", "readerName", "srcName", "deviceName"]);
         const tipo = campoEventoHik(evento, ["eventName", "eventTypeName", "eventDescription", "eventType", "eventMinorName"]);
