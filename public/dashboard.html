@@ -363,7 +363,6 @@
       mensaje.className = "alert alert-info";
       mensaje.textContent = "Consultando eventos reales de HikCentral...";
       tabla.innerHTML = '<tr><td colspan="6" class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Consultando HikCentral...</td></tr>';
-      document.getElementById("dsIndicadores").replaceChildren();
       try {
         const params = new URLSearchParams();
         if (modo === "rango") { params.set("fecha_inicio", inicio); params.set("fecha_fin", fin); }
