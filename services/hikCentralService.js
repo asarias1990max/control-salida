@@ -329,3 +329,36 @@ export async function obtenerPersonasNivelAccesoHik(nivelId = "") {
 
   return { nivel: nivel.nombre, total: Number.isFinite(total) ? total : ids.length, alumnos };
 }
+
+const DOOR_EVENTS_PATH = "/artemis/api/acs/v1/door/events";
+
+export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
+  if (!HIK_BASE_URL || !HIK_APP_KEY || !HIK_APP_SECRET) throw new Error("Falta configurar HikCentral.");
+  const now = new Date();
+  const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const inicio = fechaInicio || hoy;
+  const fin = fechaFin || hoy;
+  if (inicio > fin) throw new Error("La fecha inicial no puede ser posterior a la fecha final.");
+  const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+  const eventos = [];
+  let pageNo = 1;
+  let total = Infinity;
+  const pageSize = 100;
+  while (eventos.length < total) {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomUUID();
+    const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: 197151, pageNo, pageSize, temperatureStatus: -1, maskStatus: -1 };
+    const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
+    const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
+    const result = response.data;
+    if (!result || String(result.code) !== "0") throw new Error("HikCentral rechazó los eventos: code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
+    const data = result.data || {};
+    const list = Array.isArray(data.list) ? data.list : [];
+    if (pageNo === 1) console.log("[HikCentral] door/events estructura:", JSON.stringify({ dataKeys: Object.keys(data), listLength: list.length, firstEventKeys: list[0] ? Object.keys(list[0]) : [] }));
+    total = Number(data.total ?? list.length);
+    eventos.push(...list);
+    if (!list.length || list.length < pageSize || eventos.length >= total) break;
+    pageNo++;
+  }
+  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventos.length, eventos };
+}
