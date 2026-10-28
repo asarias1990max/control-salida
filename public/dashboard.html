@@ -17,12 +17,34 @@
     }
 
     .sidebar {
-      width: 260px;
-      height: 100vh;
-      background: #1f3c88;
-      color: white;
-      position: fixed;
-      padding: 20px;
+      width: 260px; height: 100vh; background: linear-gradient(180deg, #1d3679 0%, #172b5e 100%);
+      color: white; position: fixed; inset: 0 auto 0 0; padding: 18px 14px; overflow-x: hidden; overflow-y: auto;
+      z-index: 1040; transition: width .25s ease, padding .25s ease, transform .25s ease;
+      box-shadow: 8px 0 24px rgba(20, 36, 78, .12);
+    }
+    .sidebar-brand { display:flex; align-items:center; gap:10px; padding:4px 8px 12px; white-space:nowrap; }
+    .sidebar-brand-icon { display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px; border-radius:11px; background:rgba(255,255,255,.14); font-size:18px; }
+    .sidebar a { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar a i { display:inline-block; width:24px; text-align:center; font-size:17px; }
+    .sidebar-toggle { border:1px solid #dbe2ee; background:#fff; color:#253b70; border-radius:10px; width:40px; height:40px; display:inline-grid; place-items:center; flex:0 0 40px; }
+    .sidebar-toggle:hover { background:#eef3ff; }
+    body.sidebar-collapsed .sidebar { width:78px; padding:18px 10px; }
+    body.sidebar-collapsed .main { margin-left:78px; }
+    body.sidebar-collapsed .sidebar-brand-text, body.sidebar-collapsed .sidebar-link-text { display:none; }
+    body.sidebar-collapsed .sidebar a { text-align:center; padding:12px 6px; }
+    body.sidebar-collapsed .sidebar a i { width:auto; }
+    body.sidebar-collapsed .sidebar hr { opacity:.25; }
+    .sidebar-backdrop { display:none; }
+    @media (max-width: 768px) {
+      .sidebar { transform:translateX(-100%); width:260px; }
+      body.mobile-menu-open .sidebar { transform:translateX(0); }
+      body.sidebar-collapsed .sidebar { width:260px; padding:18px 14px; }
+      body.sidebar-collapsed .sidebar-brand-text, body.sidebar-collapsed .sidebar-link-text { display:inline; }
+      body.sidebar-collapsed .sidebar a { text-align:left; padding:11px 12px; }
+      body.sidebar-collapsed .sidebar a i { width:24px; }
+      .sidebar-backdrop { position:fixed; inset:0; background:rgba(10,20,40,.4); z-index:1030; }
+      body.mobile-menu-open .sidebar-backdrop { display:block; }
+      .main, body.sidebar-collapsed .main { margin-left:0 !important; padding:14px; }
     }
 
     .sidebar h4 {
@@ -49,10 +71,7 @@
       background: rgba(255, 255, 255, 0.12);
     }
 
-    .main {
-      margin-left: 260px;
-      padding: 20px;
-    }
+    .main { margin-left:260px; padding:20px; min-width:0; transition:margin-left .25s ease; }
 
     .card {
       border-radius: 12px;
@@ -78,25 +97,24 @@
 <body>
 
   <div class="sidebar">
-    <h4><i class="bi bi-shield-lock"></i> Sistema</h4>
+    <div class="sidebar-brand"><span class="sidebar-brand-icon"><i class="bi bi-shield-lock"></i></span><h4 class="sidebar-brand-text mb-0">Sistema</h4></div>
     <hr>
 
-    <a href="#" onclick="mostrarInicio()">
-      <i class="bi bi-house"></i> Inicio
-    </a>
+    <a href="#" title="Inicio" onclick="mostrarInicio()"><i class="bi bi-house"></i><span class="sidebar-link-text">Inicio</span></a>
 
     <div id="menuOpciones"></div>
 
-    <a href="#" class="logout" onclick="logout()">
-      <i class="bi bi-box-arrow-left"></i> Cerrar sesión
-    </a>
+    <a href="#" title="Cerrar sesión" class="logout" onclick="logout()"><i class="bi bi-box-arrow-left"></i><span class="sidebar-link-text">Cerrar sesión</span></a>
   </div>
 
+  <div class="sidebar-backdrop" onclick="cerrarMenuMovil()"></div>
   <div class="main">
-
-    <div class="topbar">
-      <h5 id="tituloSeccion">Dashboard</h5>
-      <div id="userName"></div>
+    <div class="topbar gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <button id="btnToggleMenu" class="sidebar-toggle" type="button" onclick="alternarMenuLateral()" aria-label="Contraer menú" aria-expanded="true" title="Contraer menú"><i class="bi bi-layout-sidebar-inset"></i></button>
+        <h5 id="tituloSeccion" class="mb-0">Dashboard</h5>
+      </div>
+      <div id="userName" class="text-muted small"></div>
     </div>
 
     <div id="inicio" class="section-box">
@@ -166,6 +184,23 @@
 
     document.getElementById("userName").innerText = "👤 " + usuario.nombre;
 
+    function alternarMenuLateral() {
+      if (window.matchMedia("(max-width: 768px)").matches) {
+        document.body.classList.toggle("mobile-menu-open");
+        return;
+      }
+      const contraido = document.body.classList.toggle("sidebar-collapsed");
+      const boton = document.getElementById("btnToggleMenu");
+      if (boton) {
+        boton.setAttribute("aria-expanded", String(!contraido));
+        boton.setAttribute("aria-label", contraido ? "Expandir menú" : "Contraer menú");
+        boton.title = contraido ? "Expandir menú" : "Contraer menú";
+        boton.innerHTML = contraido ? '<i class="bi bi-layout-sidebar"></i>' : '<i class="bi bi-layout-sidebar-inset"></i>';
+      }
+    }
+
+    function cerrarMenuMovil() { document.body.classList.remove("mobile-menu-open"); }
+
     const permisos = usuario.permisos_menu || [];
     const menu = document.getElementById("menuOpciones");
 
@@ -207,7 +242,7 @@
       if (permisos.includes(op.permiso)) {
         menu.innerHTML += `
           <a href="#" onclick="cargarVista('${op.permiso}')">
-            <i class="bi ${op.icono}"></i> ${op.texto}
+            <i class="bi ${op.icono}"></i><span class="sidebar-link-text">${op.texto}</span>
           </a>
         `;
       }
@@ -281,6 +316,7 @@
     }
 
     function mostrarInicio() {
+      cerrarMenuMovil();
       ocultarSecciones();
       document.getElementById("inicio").style.display = "block";
       document.getElementById("tituloSeccion").innerText = "Dashboard";
@@ -288,6 +324,7 @@
     }
 
     function cargarVista(vista) {
+      cerrarMenuMovil();
       ocultarSecciones();
 
       fetch(`/views/${vista}.html`)
