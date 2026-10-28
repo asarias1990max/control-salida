@@ -156,8 +156,15 @@ export async function obtenerNivelesAccesoHik() {
  * API documentada: POST /artemis/api/acs/v1/privilege/group/single/personList
  * Se solicita pageSize=1 porque HikCentral devuelve el total en data.total.
  */
-export async function obtenerConteoPersonasNivelesHik() {
-  const niveles = await obtenerNivelesAccesoHik();
+export async function obtenerConteoPersonasNivelesHik(nivelId = "") {
+  const todosLosNiveles = await obtenerNivelesAccesoHik();
+  const niveles = nivelId
+    ? todosLosNiveles.filter((nivel) => nivel.id === String(nivelId))
+    : []; 
+  if (nivelId && niveles.length === 0) {
+    throw new Error("El nivel de acceso seleccionado no existe en HikCentral.");
+  }
+  if (!nivelId) return [];
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
   const conteos = await Promise.all(niveles.map(async (nivel) => {
