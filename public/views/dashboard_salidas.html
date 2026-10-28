@@ -2,17 +2,21 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <h4 class="mb-1">Dashboard de Salidas</h4>
-      <p class="text-muted mb-0">Consulta las salidas por nivel académico.</p>
+      <p class="text-muted mb-0">Consulta los registros según los niveles de acceso configurados en HikCentral.</p>
     </div>
     <div class="d-flex align-items-center gap-2">
       <label for="nivelAccesoSalida" class="form-label mb-0 fw-semibold">Nivel de acceso</label>
-      <select id="nivelAccesoSalida" class="form-select" style="min-width:220px" onchange="cambiarNivelDashboardSalidas(this.value)">
-        <option value="todos">Todos los niveles</option>
-        <option value="lower">Lower School</option>
-        <option value="middle">Middle School</option>
-        <option value="high">High School</option>
+      <select id="nivelAccesoSalida" class="form-select" style="min-width:260px">
+        <option value="">Cargando niveles de HikCentral...</option>
       </select>
+      <button type="button" class="btn btn-outline-primary" onclick="inicializarDashboardSalidas()" title="Actualizar niveles de acceso">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
     </div>
+  </div>
+
+  <div id="dsMensajeEstado" class="alert alert-info" role="status">
+    Consultando niveles de acceso configurados en HikCentral...
   </div>
 
   <div class="row g-3 mb-4">
@@ -45,22 +49,7 @@
   <div class="card shadow-sm">
     <div class="card-body">
       <h5 class="card-title">Resumen de salidas</h5>
-      <p class="text-muted mb-0" id="dsMensajeEstado">Selecciona un nivel para filtrar el resumen. La conexión con los datos reales se completará cuando definamos los indicadores y campos que debe mostrar este dashboard.</p>
+      <p class="text-muted mb-0">El selector ya consulta los niveles de acceso reales de HikCentral. La conexión de los indicadores del dashboard con los eventos de salida será el siguiente paso.</p>
     </div>
   </div>
 </div>
-
-<script>
-  function cambiarNivelDashboardSalidas(nivel) {
-    const nombres = {
-      todos: "Todos los niveles",
-      lower: "Lower School",
-      middle: "Middle School",
-      high: "High School"
-    };
-    const mensaje = document.getElementById("dsMensajeEstado");
-    if (mensaje) {
-      mensaje.textContent = "Filtro seleccionado: " + (nombres[nivel] || nombres.todos) + ". La vista está preparada; los indicadores se conectarán a los datos reales en la siguiente fase.";
-    }
-  }
-</script>
