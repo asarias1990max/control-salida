@@ -40,6 +40,30 @@
   </div>
   <div class="card shadow-sm border-0 mb-3">
     <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div><h5 class="mb-1"><i class="bi bi-clock-history me-2 text-primary"></i>Histórico diario de sincronizaciones</h5>
+          <p class="text-muted small mb-0">Fotografías diarias de niveles, asignaciones, horarios y reglas. Compara cada día con el anterior.</p></div>
+        <div class="d-flex flex-wrap align-items-end gap-2">
+          <div><label for="dsHistDesde" class="form-label mb-1">Desde</label><input id="dsHistDesde" type="date" class="form-control"></div>
+          <div><label for="dsHistHasta" class="form-label mb-1">Hasta</label><input id="dsHistHasta" type="date" class="form-control"></div>
+          <button type="button" class="btn btn-outline-primary" onclick="cargarHistorialDiarioHik()"><i class="bi bi-search me-1"></i>Consultar</button>
+        </div>
+      </div>
+      <div id="dsHistIndicadores" class="row g-2 mb-3">
+        <div class="col-12 text-muted small">Cargando histórico...</div>
+      </div>
+      <div id="dsHistEstado" class="small text-muted mb-2" role="status">Consultando fotografías guardadas...</div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light"><tr><th>Fecha</th><th>Última sincronización</th><th>Niveles</th><th>Asignaciones</th><th>Horarios</th><th>Reglas</th><th>Cambio vs. día anterior</th><th>Detalle</th></tr></thead>
+          <tbody id="dsHistTabla"><tr><td colspan="8" class="text-center text-muted py-4">Cargando histórico...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="small text-muted">Si no hay registros, verifica que la sincronización diaria de HikCentral se haya completado correctamente.</div>
+    </div>
+  </div>
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div><h5 class="mb-1">Nivel de acceso por estudiante</h5><p class="text-muted small mb-0">Asignaciones actuales consultadas desde la API de HikCentral.</p></div>
         <button id="dsBtnSincronizarNiveles" type="button" class="btn btn-outline-primary" onclick="sincronizarNivelesEstudiantesHik()"><i class="bi bi-arrow-repeat me-1"></i> Sincronizar desde HikCentral</button>
