@@ -372,7 +372,7 @@
         const rows = Array.isArray(result.data) ? result.data : [];
         cuerpo.replaceChildren();
         if (!rows.length) {
-          cuerpo.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No hay asignaciones sincronizadas. Pulsa «Sincronizar desde HikCentral».</td></tr>';
+          cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No hay asignaciones sincronizadas. Pulsa «Sincronizar desde HikCentral».</td></tr>';
           estado.textContent = "No hay asignaciones guardadas en Supabase.";
           return;
         }
@@ -387,7 +387,8 @@
             row.codigo || row.codigo_hik || "—",
             curso || row.seccion || "—",
             row.nivel_acceso || "Sin nivel",
-            row.hora_salida_nivel ? horaTextoHik(row.hora_salida_nivel) : "No viene en nombre/descripción",
+            row.horario_hikcentral_nombre || "Sin plantilla identificada",
+            row.hora_salida_nivel ? horaTextoHik(row.hora_salida_nivel) : "No indicada por la API",
             horario,
             row.fuente_horario || "Por verificar"
           ];
@@ -399,7 +400,7 @@
           });
           cuerpo.append(tr);
         });
-        estado.textContent = rows.length + " asignaciones estudiante/nivel guardadas. El horario detectado desde la API se separa del horario escolar configurado.";
+        estado.textContent = rows.length + " asignaciones estudiante/nivel guardadas. La plantilla de HikCentral se muestra por separado del horario escolar configurado." ;
       } catch (error) {
         estado.textContent = error.message || "Error consultando asignaciones.";
         estado.className = "small text-danger mb-2";
