@@ -411,6 +411,17 @@
           columna.className = "col-sm-6 col-xl-3";
           const tarjeta = document.createElement("div");
           tarjeta.className = "card shadow-sm h-100 border-0";
+          tarjeta.style.cursor = "pointer";
+          tarjeta.setAttribute("role", "button");
+          tarjeta.setAttribute("tabindex", "0");
+          tarjeta.setAttribute("aria-label", "Ver alumnos de " + (nivel.nombre || "nivel seleccionado"));
+          tarjeta.addEventListener("click", () => cargarPersonasNivelAcceso(nivel.id, nivel.nombre));
+          tarjeta.addEventListener("keydown", (evento) => {
+            if (evento.key === "Enter" || evento.key === " ") {
+              evento.preventDefault();
+              cargarPersonasNivelAcceso(nivel.id, nivel.nombre);
+            }
+          });
           const cuerpo = document.createElement("div");
           cuerpo.className = "card-body";
           const nombre = document.createElement("div");
@@ -436,6 +447,26 @@
       }
     }
 
+    async function cargarPersonasNivelAcceso(nivelId, nombreNivel) {
+      const detalle = document.getElementById("dsDetallePersonas");
+      if (!detalle) return;
+      detalle.innerHTML = '<div class="card shadow-sm border-0"><div class="card-body text-muted"><span class="spinner-border spinner-border-sm me-2" role="status"></span>Consultando nombres de alumnos en HikCentral...</div></div>';
+      try {
+        const respuesta = await fetch("/api/salidas/niveles-acceso/personas?nivelId=" + encodeURIComponent(nivelId), { headers: { Accept: "application/json" } });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible consultar los alumnos.");
+        const data = resultado.data || {};
+        const alumnos = Array.isArray(data.alumnos) ? data.alumnos : [];
+        const tarjeta = document.createElement("div"); tarjeta.className = "card shadow-sm border-0";
+        const cuerpo = document.createElement("div"); cuerpo.className = "card-body";
+        const titulo = document.createElement("h5"); titulo.className = "mb-1"; titulo.textContent = "Alumnos: " + (data.nivel || nombreNivel || "Nivel seleccionado");
+        const resumen = document.createElement("p"); resumen.className = "text-muted small mb-3"; resumen.textContent = "Nombres obtenidos directamente de HikCentral · " + alumnos.length + " mostrados";
+        cuerpo.append(titulo, resumen);
+        if (!alumnos.length) { const vacio = document.createElement("div"); vacio.className = "alert alert-warning mb-0"; vacio.textContent = "HikCentral no devolvió nombres de alumnos para este nivel. Si el conteo de la tarjeta es mayor que cero, hay que revisar los nombres de campos que devuelve la API."; cuerpo.append(vacio); }
+        else { const lista = document.createElement("ul"); lista.className = "list-group list-group-flush"; alumnos.forEach((alumno) => { const fila = document.createElement("li"); fila.className = "list-group-item px-0"; fila.textContent = alumno.nombre; lista.append(fila); }); cuerpo.append(lista); }
+        tarjeta.append(cuerpo); detalle.replaceChildren(tarjeta); detalle.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) { detalle.innerHTML = ""; const alerta = document.createElement("div"); alerta.className = "alert alert-danger"; alerta.textContent = "Error consultando alumnos en HikCentral: " + (error.message || "Error desconocido"); detalle.append(alerta); }
+    }
     async function inicializarLower() {
       const selectCurso = document.getElementById("selectCursoLower");
       const selectParalelo = document.getElementById("selectParaleloLower");
