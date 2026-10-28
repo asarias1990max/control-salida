@@ -368,7 +368,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
     if (!listaPuertas.length || listaPuertas.length < tamanioPuertas || puertas.length >= totalPuertas) break;
     paginaPuertas++;
   }
-  const doorIndexCodes = [...new Set(puertas.map(p => p.doorIndexCode).filter(v => v !== undefined && v !== null && String(v).trim() !== "").map(String))];
+  const doorIndexCodes = [...new Set(puertas.map(p => p.doorIndexCode).filter(v => v !== undefined && v !== null && String(v).trim() !== "").map(String))].filter(code => ["8", "23"].includes(code));
   if (!doorIndexCodes.length) throw new Error("HikCentral no devolvió códigos de puntos de acceso; no se puede consultar el historial de eventos.");
 
   console.log("[HikCentral] Puntos de acceso disponibles para eventos:", doorIndexCodes.length);
@@ -376,18 +376,18 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
   const eventos = [];
   let pageNo = 1;
   let total = Infinity;
-  const pageSize = 100;
+  const pageSize = 500;
   while (eventos.length < total) {
     const timestamp = Date.now().toString();
     const nonce = crypto.randomUUID();
-    const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: 196893, doorIndexCodes: doorIndexCodes.slice(0, 10), pageNo, pageSize, temperatureStatus: -1, maskStatus: -1, sortField: "SwipeTime", orderType: 1 };
+    const body = { startTime: inicio + "T07:30:00-05:00", endTime: fin + "T10:00:00-05:00", eventType: 196893, doorIndexCodes, pageNo, pageSize, sortField: "SwipeTime", orderType: 1 };
     const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
     const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
     const result = response.data;
     if (!result || String(result.code) !== "0") throw new Error("HikCentral rechazó los eventos: code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
     const data = result.data || {};
-    const list = Array.isArray(data.list) ? data.list : [];
-    if (pageNo === 1) console.log("[HikCentral] door/events estructura:", JSON.stringify({ dataKeys: Object.keys(data), listLength: list.length, firstEventKeys: list[0] ? Object.keys(list[0]) : [] }));
+    const list = Array.isArray(data.list) ? data.list : Array.isArray(data.events) ? data.events : Array.isArray(data.records) ? data.records : Array.isArray(data.eventList) ? data.eventList : [];
+    if (pageNo === 1) console.log("[HikCentral] door/events estructura:", JSON.stringify({ dataKeys: Object.keys(data), listLength: list.length, firstEventKeys: list[0] ? Object.keys(list[0]) : [], total: data.total, doorIndexCodes, startTime: body.startTime, endTime: body.endTime, eventType: body.eventType }));
     total = Number(data.total ?? list.length);
     eventos.push(...list);
     if (!list.length || list.length < pageSize || eventos.length >= total) break;
