@@ -200,13 +200,19 @@ export async function sincronizarNivelesYAsignacionesHik() {
   const horariosHik = [];
   let paginaHorarios = 1;
   let totalHorarios = Infinity;
-  while (horariosHik.length < totalHorarios) {
-    const dataHorarios = await postArtemis("/artemis/api/acs/v1/schedule/accessSchedule/get", { pageNo: paginaHorarios, pageSize: 500 });
-    const pagina = Array.isArray(dataHorarios.list) ? dataHorarios.list : [];
-    if (paginaHorarios === 1) totalHorarios = Number(dataHorarios.total ?? pagina.length);
-    horariosHik.push(...pagina);
-    if (!pagina.length || pagina.length < 500 || horariosHik.length >= totalHorarios) break;
-    paginaHorarios++;
+  let errorConsultaHorarios = "";
+  try {
+    while (horariosHik.length < totalHorarios) {
+      const dataHorarios = await postArtemis("/artemis/api/acs/v1/schedule/accessSchedule/get", { pageNo: paginaHorarios, pageSize: 500 });
+      const pagina = Array.isArray(dataHorarios.list) ? dataHorarios.list : [];
+      if (paginaHorarios === 1) totalHorarios = Number(dataHorarios.total ?? pagina.length);
+      horariosHik.push(...pagina);
+      if (!pagina.length || pagina.length < 500 || horariosHik.length >= totalHorarios) break;
+      paginaHorarios++;
+    }
+  } catch (error) {
+    errorConsultaHorarios = error.message;
+    console.warn("[HikCentral] No se pudieron consultar plantillas de horario; se utilizará el nombre que venga en cada nivel:", error.message);
   }
   const horarioPorId = new Map(horariosHik.map(h => [String(h.indexCode ?? ""), h]).filter(([id]) => id));
   const filasHorarios = horariosHik.map(h => ({
@@ -319,6 +325,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
     personasConsultadas,
     personasSinCoincidencia,
     horariosHikCentral: filasHorarios.length,
+    errorConsultaHorarios: errorConsultaHorarios || null,
     horariosDetectadosDesdeNombreDescripcion: listaNiveles.filter(n => n.hora_salida).length
   };
 }
