@@ -1,12 +1,12 @@
 import express from "express";
+import { obtenerConteoPersonasNivelesHik } from "../services/hikCentralService.js";
 import {
   registrarSalida,
   obtenerSalidasHoy,
   obtenerPendientes,
   obtenerActividadReciente,
   obtenerSalidasPorFecha,
-  obtenerNivelesAcceso,
-  obtenerConteosNivelesAcceso
+  obtenerNivelesAcceso
 } from "../controllers/salidasController.js";
 
 const router = express.Router();
@@ -17,6 +17,14 @@ router.get("/pendientes", obtenerPendientes);
 router.get("/actividad", obtenerActividadReciente);
 router.get("/reporte", obtenerSalidasPorFecha);
 router.get("/niveles-acceso", obtenerNivelesAcceso);
-router.get("/niveles-acceso/conteos", obtenerConteosNivelesAcceso);
+router.get("/niveles-acceso/conteos", async (req, res) => {
+  try {
+    const data = await obtenerConteoPersonasNivelesHik();
+    return res.json({ ok: true, data });
+  } catch (error) {
+    console.error("Error consultando conteos de HikCentral:", error.message);
+    return res.status(502).json({ ok: false, message: error.message || "Error consultando conteos de HikCentral." });
+  }
+});
 
 export default router;
