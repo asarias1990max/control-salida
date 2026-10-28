@@ -18,6 +18,114 @@ router.get("/pendientes", obtenerPendientes);
 router.get("/actividad", obtenerActividadReciente);
 router.get("/reporte", obtenerSalidasPorFecha);
 router.get("/niveles-acceso", obtenerNivelesAcceso);
+router.get("/dashboard-resumen-diario", async (req, res) => {
+  try {
+    const fecha = String(req.query.fecha || "").trim() || new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
+    const inicio = new Date(fecha + "T05:00:00.000Z");
+    const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
+    const [estudiantesResult, eventosResult, asignacionesResult, configuracionResult] = await Promise.all([
+      supabase.from("estudiantes").select("id,codigo,codigo_hik,apellidos,nombres,seccion,curso,paralelo").eq("estado", true).order("apellidos", { ascending: true }),
+      supabase.from("eventos_hikcentral").select("estudiante_id,codigo_hik,fecha_evento,puerta_codigo,puerta_nombre,tipo_evento,tipo_evento_codigo,resultado,datos_originales").gte("fecha_evento", inicio.toISOString()).lt("fecha_evento", fin.toISOString()).order("fecha_evento", { ascending: true }),
+      supabase.from("estudiante_niveles_acceso_hikcentral").select("estudiante_id, privilege_group_id, niveles_acceso_hikcentral(nombre,hora_salida,time_schedule_name)"),
+      supabase.from("configuracion_salidas").select("nivel_acceso,hora_inicio,hora_fin,puertas").eq("activo", true)
+    ]);
+    if (estudiantesResult.error) throw estudiantesResult.error;
+    if (eventosResult.error) throw eventosResult.error;
+    if (asignacionesResult.error) throw asignacionesResult.error;
+    if (configuracionResult.error) throw configuracionResult.error;
+
+    const normalizarPuerta = (valor) => String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^door\s+/, "").replace(/[^a-z0-9]/g, "");
+    const configs = configuracionResult.data || [];
+    const configPorNivel = new Map(configs.map(x => [String(x.nivel_acceso || "").trim().toLowerCase(), x]));
+    const asignacionesPorEstudiante = new Map();
+    (asignacionesResult.data || []).forEach(row => {
+      const nivel = row.niveles_acceso_hikcentral || {};
+      const config = configPorNivel.get(String(nivel.nombre || "").trim().toLowerCase());
+      const lista = asignacionesPorEstudiante.get(row.estudiante_id) || [];
+      lista.push({
+        nombre: nivel.nombre || "Nivel sin nombre",
+        horaExacta: nivel.hora_salida || null,
+        plantilla: nivel.time_schedule_name || "",
+        inicio: config?.hora_inicio || null,
+        fin: config?.hora_fin || null,
+        puertas: config?.puertas || []
+      });
+      asignacionesPorEstudiante.set(row.estudiante_id, lista);
+    });
+    const eventosPorEstudiante = new Map();
+    (eventosResult.data || []).forEach(evento => {
+      if (!evento.estudiante_id) return;
+      const lista = eventosPorEstudiante.get(evento.estudiante_id) || [];
+      lista.push(evento);
+      eventosPorEstudiante.set(evento.estudiante_id, lista);
+    });
+    const ahoraLocal = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+    const fechaHoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const resumen = (estudiantesResult.data || []).map(estudiante => {
+      const niveles = asignacionesPorEstudiante.get(estudiante.id) || [];
+      const eventos = eventosPorEstudiante.get(estudiante.id) || [];
+      const reglas = niveles.map(n => ({ ...n, puertasNormalizadas: n.puertas.map(normalizarPuerta) })).filter(n => n.inicio && n.fin);
+      const eventosSalida = eventos.filter(evento => {
+        const puerta = normalizarPuerta(evento.puerta_nombre || evento.puerta_codigo);
+        if (!puerta) return false;
+        const reglasConPuerta = reglas.filter(regla => regla.puertasNormalizadas.some(p => p && (puerta.includes(p) || p.includes(puerta))));
+        return reglasConPuerta.length > 0;
+      });
+      const eventoSalida = eventosSalida[0] || null;
+      const horaReal = eventoSalida ? new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(eventoSalida.fecha_evento)) : null;
+      let estado = "Pendiente de salida";
+      if (!niveles.length) estado = "Nivel de acceso no sincronizado";
+      else if (!reglas.length) estado = "Horario por verificar";
+      else if (eventoSalida) {
+        const minutos = horaReal ? Number(horaReal.slice(0, 2)) * 60 + Number(horaReal.slice(3, 5)) : null;
+        const dentroHorario = reglas.some(regla => {
+          if (minutos === null) return false;
+          const ini = Number(String(regla.inicio).slice(0, 2)) * 60 + Number(String(regla.inicio).slice(3, 5));
+          const finMin = Number(String(regla.fin).slice(0, 2)) * 60 + Number(String(regla.fin).slice(3, 5));
+          return minutos >= ini && minutos <= finMin;
+        });
+        const minInicio = Math.min(...reglas.map(regla => Number(String(regla.inicio).slice(0, 2)) * 60 + Number(String(regla.inicio).slice(3, 5))));
+        const minFin = Math.max(...reglas.map(regla => Number(String(regla.fin).slice(0, 2)) * 60 + Number(String(regla.fin).slice(3, 5))));
+        estado = dentroHorario ? "Salida registrada en horario" : minutos < minInicio ? "Salida anticipada" : "Salida fuera del horario";
+      } else if (fecha !== fechaHoy) {
+        estado = "Sin evento de salida registrado";
+      } else {
+        const minAhora = Number(ahoraLocal.slice(0, 2)) * 60 + Number(ahoraLocal.slice(3, 5));
+        const finReglas = Math.max(...reglas.map(regla => Number(String(regla.fin).slice(0, 2)) * 60 + Number(String(regla.fin).slice(3, 5))));
+        estado = minAhora > finReglas ? "Sin evento de salida registrado" : "Pendiente de salida";
+      }
+      return {
+        estudiante_id: estudiante.id,
+        codigo: estudiante.codigo || "",
+        codigo_hik: estudiante.codigo_hik || "",
+        estudiante: [estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" ").trim(),
+        curso: estudiante.curso || "",
+        paralelo: estudiante.paralelo || "",
+        niveles: niveles.map(n => n.nombre),
+        horarios_hikcentral: niveles.map(n => n.plantilla).filter(Boolean),
+        hora_esperada: niveles.map(n => n.horaExacta).filter(Boolean).join(", ") || reglas.map(n => String(n.inicio).slice(0,5) + "–" + String(n.fin).slice(0,5)).join(", "),
+        hora_real_salida: horaReal,
+        puerta_salida: eventoSalida?.puerta_nombre || eventoSalida?.puerta_codigo || "",
+        estado,
+        eventos_del_dia: eventos.length
+      };
+    });
+    return res.json({
+      ok: true, fecha, totalEstudiantes: resumen.length,
+      conSalida: resumen.filter(r => r.hora_real_salida).length,
+      sinNivel: resumen.filter(r => r.estado === "Nivel de acceso no sincronizado").length,
+      novedades: resumen.filter(r => ["Salida anticipada", "Salida fuera del horario", "Sin evento de salida registrado", "Horario por verificar"].includes(r.estado)).length,
+      data: resumen
+    });
+  } catch (error) {
+    console.error("Error generando resumen diario de salidas:", error.message);
+    return res.status(500).json({ ok: false, message: error.message || "No se pudo generar el resumen diario." });
+  }
+});
+
 router.post("/dashboard-niveles/sincronizar", async (req, res) => {
   try {
     const data = await sincronizarNivelesYAsignacionesHik();
