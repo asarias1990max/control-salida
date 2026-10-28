@@ -20,11 +20,10 @@
     </div>
   </div>
   <div id="dsMensajeEstado" class="alert alert-info" role="status">Preparando consulta de HikCentral...</div>
-  <div id="dsIndicadores" class="row g-3 mb-4"></div>
   <div class="card shadow-sm border-0">
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div><h5 id="dsTituloListado" class="mb-1">Eventos de acceso</h5><p class="text-muted small mb-0">Selecciona un indicador para filtrar el listado.</p></div>
+        <div><h5 id="dsTituloListado" class="mb-1">Eventos de acceso</h5><p class="text-muted small mb-0">Registros originales recibidos de HikCentral.</p></div>
         <input id="dsBuscarEvento" class="form-control" style="max-width:300px" placeholder="Buscar estudiante, código o puerta..." oninput="filtrarTablaEventosHik()">
       </div>
       <div class="table-responsive">
@@ -35,5 +34,5 @@
       </div>
     </div>
   </div>
-  <p class="text-muted small mt-3">Los indicadores que requieren horarios autorizados y padrón completo se mostrarán cuando esos datos estén verificados.</p>
+  <p class="text-muted small mt-3">La tabla muestra los datos recibidos de HikCentral. No se calculan porcentajes ni indicadores derivados.</p>
 </div>
