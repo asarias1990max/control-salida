@@ -386,6 +386,7 @@
         }
       };
       await cargarConfiguracionHorariosHik();
+      await cargarHistorialDiarioHik();
       await cargarNivelesEstudiantesHik();
       await cargarPuertasDashboardHik();
       const selectorPuertas = document.getElementById("dsPuertas");
@@ -1760,6 +1761,173 @@ async function descargarPDFReporte() {
     alert("Error al generar el PDF.");
   }
 }
+
+    let historialDiarioHik = [];
+
+    function fechaLocalHikDashboard(fecha = new Date()) {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
+      }).format(fecha);
+    }
+
+    function fechaHoraLocalHikDashboard(valor) {
+      if (!valor) return "—";
+      const fecha = new Date(valor);
+      if (Number.isNaN(fecha.getTime())) return String(valor);
+      return new Intl.DateTimeFormat("es-EC", {
+        timeZone: "America/Guayaquil", day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+      }).format(fecha);
+    }
+
+    async function cargarHistorialDiarioHik() {
+      const cuerpo = document.getElementById("dsHistTabla");
+      const estado = document.getElementById("dsHistEstado");
+      const indicadores = document.getElementById("dsHistIndicadores");
+      const desde = document.getElementById("dsHistDesde");
+      const hasta = document.getElementById("dsHistHasta");
+      if (!cuerpo || !estado || !indicadores) return;
+      const hoy = fechaLocalHikDashboard();
+      if (hasta && !hasta.value) hasta.value = hoy;
+      if (desde && !desde.value) {
+        const d = new Date();
+        d.setDate(d.getDate() - 29);
+        desde.value = fechaLocalHikDashboard(d);
+      }
+      const fechaDesde = desde?.value || "";
+      const fechaHasta = hasta?.value || hoy;
+      if (!fechaDesde || !fechaHasta || fechaDesde > fechaHasta) {
+        estado.className = "small text-danger mb-2";
+        estado.textContent = "Selecciona un rango de fechas válido.";
+        return;
+      }
+      estado.className = "small text-muted mb-2";
+      estado.textContent = "Consultando el histórico guardado en Supabase...";
+      cuerpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Consultando...</td></tr>';
+      try {
+        const response = await fetch("/api/salidas/dashboard-historial?desde=" + encodeURIComponent(fechaDesde) + "&hasta=" + encodeURIComponent(fechaHasta), {
+          headers: { Accept: "application/json" }
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo consultar el histórico.");
+        historialDiarioHik = Array.isArray(result.data) ? result.data : [];
+        indicadores.replaceChildren();
+        const totales = [
+          ["Días con registro", historialDiarioHik.length],
+          ["Último total de niveles", historialDiarioHik[0]?.total_niveles ?? 0],
+          ["Últimas asignaciones", historialDiarioHik[0]?.total_asignaciones ?? 0],
+          ["Reglas guardadas", historialDiarioHik[0]?.total_reglas ?? 0]
+        ];
+        totales.forEach(([label, value]) => {
+          const col = document.createElement("div");
+          col.className = "col-6 col-lg-3";
+          const card = document.createElement("div");
+          card.className = "border rounded-3 p-3 h-100 bg-light";
+          const caption = document.createElement("div");
+          caption.className = "small text-muted";
+          caption.textContent = label;
+          const number = document.createElement("div");
+          number.className = "fs-4 fw-semibold";
+          number.textContent = String(value);
+          card.append(caption, number);
+          col.append(card);
+          indicadores.append(col);
+        });
+        cuerpo.replaceChildren();
+        if (!historialDiarioHik.length) {
+          cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-database-exclamation fs-4 d-block mb-2"></i>No hay fotografías guardadas en este periodo.</td></tr>';
+          estado.textContent = "No se encontraron sincronizaciones entre " + fechaDesde + " y " + fechaHasta + ".";
+          return;
+        }
+        historialDiarioHik.forEach((fila, index) => {
+          const tr = document.createElement("tr");
+          const celdas = [
+            fila.fecha || "—",
+            fechaHoraLocalHikDashboard(fila.sincronizado_en),
+            fila.total_niveles ?? 0,
+            fila.total_asignaciones ?? 0,
+            fila.total_horarios ?? 0,
+            fila.total_reglas ?? 0
+          ];
+          celdas.forEach((valor, i) => {
+            const td = document.createElement("td");
+            td.textContent = String(valor);
+            if (i === 0) td.className = "fw-semibold text-nowrap";
+            tr.append(td);
+          });
+          const cambio = document.createElement("td");
+          if (fila.variacion_niveles === null || fila.variacion_niveles === undefined) {
+            cambio.textContent = "Sin día anterior en el rango";
+            cambio.className = "small text-muted";
+          } else {
+            const nivelDiff = Number(fila.variacion_niveles);
+            const asigDiff = Number(fila.variacion_asignaciones || 0);
+            cambio.textContent = "Niveles " + (nivelDiff > 0 ? "+" : "") + nivelDiff + " · Asignaciones " + (asigDiff > 0 ? "+" : "") + asigDiff;
+            cambio.className = "small " + (nivelDiff < 0 || asigDiff < 0 ? "text-danger" : nivelDiff > 0 || asigDiff > 0 ? "text-success" : "text-muted");
+          }
+          tr.append(cambio);
+          const detalleCell = document.createElement("td");
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "btn btn-sm btn-outline-primary";
+          btn.innerHTML = '<i class="bi bi-list-ul me-1"></i>Ver detalle';
+          btn.setAttribute("aria-expanded", "false");
+          const detailId = "dsHistDetalle" + index;
+          btn.setAttribute("aria-controls", detailId);
+          btn.onclick = () => {
+            const detailRow = document.getElementById(detailId);
+            if (!detailRow) return;
+            const visible = !detailRow.classList.contains("d-none");
+            detailRow.classList.toggle("d-none", visible);
+            btn.setAttribute("aria-expanded", String(!visible));
+            btn.innerHTML = visible ? '<i class="bi bi-list-ul me-1"></i>Ver detalle' : '<i class="bi bi-chevron-up me-1"></i>Ocultar';
+          };
+          detalleCell.append(btn);
+          tr.append(detalleCell);
+          cuerpo.append(tr);
+
+          const detailRow = document.createElement("tr");
+          detailRow.id = detailId;
+          detailRow.className = "d-none";
+          const detailCell = document.createElement("td");
+          detailCell.colSpan = 8;
+          detailCell.className = "bg-light p-3";
+          const grid = document.createElement("div");
+          grid.className = "row g-3";
+          const sections = [
+            ["Niveles de acceso", fila.detalle_niveles || []],
+            ["Referencias de horario", fila.referencias_horario || []],
+            ["Configuración de salidas", fila.configuracion_salidas || []]
+          ];
+          sections.forEach(([titulo, data]) => {
+            const col = document.createElement("div");
+            col.className = "col-12 col-xl-4";
+            const h = document.createElement("div");
+            h.className = "fw-semibold small mb-2";
+            h.textContent = titulo + " (" + data.length + ")";
+            const pre = document.createElement("pre");
+            pre.className = "small bg-white border rounded p-2 mb-0";
+            pre.style.maxHeight = "240px";
+            pre.style.overflow = "auto";
+            pre.style.whiteSpace = "pre-wrap";
+            pre.textContent = data.length ? JSON.stringify(data, null, 2) : "Sin datos";
+            col.append(h, pre);
+            grid.append(col);
+          });
+          const asignaciones = document.createElement("div");
+          asignaciones.className = "small text-muted mt-2";
+          asignaciones.textContent = "Total de asignaciones guardadas: " + (fila.detalle_asignaciones || []).length;
+          detailCell.append(grid, asignaciones);
+          detailRow.append(detailCell);
+          cuerpo.append(detailRow);
+        });
+        estado.textContent = "Se encontraron " + historialDiarioHik.length + " fotografías diarias. Las variaciones se comparan con el día anterior cuando también está incluido en el periodo.";
+      } catch (error) {
+        estado.className = "small text-danger mb-2";
+        estado.textContent = error.message || "Error consultando histórico diario.";
+        cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">No se pudo cargar el histórico.</td></tr>';
+      }
+    }
   </script>
 
 </body>
