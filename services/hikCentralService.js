@@ -307,7 +307,36 @@ export async function sincronizarNivelesYAsignacionesHik() {
   }
   const { error: borrarError } = await supabase.from("estudiante_niveles_acceso_hikcentral").delete().lt("asignado_en", inicioSincronizacion);
   if (borrarError) throw new Error("No se pudieron limpiar asignaciones antiguas: " + borrarError.message);
+
+  // Conserva una fotografía diaria de la información que normalmente se revisa en el Excel.
+  // Si se vuelve a sincronizar el mismo día, se actualiza esa fotografía sin crear duplicados.
+  const fechaSnapshot = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date());
+  const { data: configuracionSnapshot, error: errorConfiguracionSnapshot } = await supabase
+    .from("configuracion_salidas")
+    .select("nivel_acceso,hora_inicio,hora_fin,puertas,activo,fuente,updated_at")
+    .order("nivel_acceso");
+  if (errorConfiguracionSnapshot) throw new Error("No se pudo leer la configuración para el histórico diario: " + errorConfiguracionSnapshot.message);
+
+  const snapshot = {
+    fecha_snapshot: fechaSnapshot,
+    niveles_acceso: listaNiveles,
+    asignaciones_estudiantes: asignaciones,
+    referencias_horario: filasHorarios,
+    configuracion_salidas: configuracionSnapshot || [],
+    total_niveles: listaNiveles.length,
+    total_asignaciones: asignaciones.length,
+    total_horarios: filasHorarios.length,
+    sincronizado_en: new Date().toISOString()
+  };
+  const { error: errorSnapshot } = await supabase
+    .from("historial_diario_hikcentral")
+    .upsert(snapshot, { onConflict: "fecha_snapshot" });
+  if (errorSnapshot) throw new Error("No se pudo guardar el histórico diario de HikCentral: " + errorSnapshot.message);
+
   return {
+    fechaSnapshot,
     nivelesSincronizados: listaNiveles.length,
     asignacionesSincronizadas: asignaciones.length,
     personasConsultadas,
