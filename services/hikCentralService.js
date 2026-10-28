@@ -22,7 +22,7 @@ function generarFirma(method, path, timestamp, nonce) {
     "x-ca-timestamp:" + timestamp + "\n" +
     path;
 
-  console.log("STRING TO SIGN HIK:\n" + stringToSign);
+  console.log(`[HikCentral] Firmando solicitud ${method} ${path} (timestamp=${timestamp}, nonce=${nonce})`);
 
   return crypto
     .createHmac("sha256", HIK_APP_SECRET)
@@ -52,21 +52,43 @@ export async function asignarEstudianteNivelAcceso({ privilegeGroupId, codigoHik
     rejectUnauthorized: false
   });
 
-  const response = await axios.post(url, body, {
-    httpsAgent,
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "*/*",
-      "X-Ca-Key": HIK_APP_KEY,
-      "X-Ca-Timestamp": timestamp,
-      "X-Ca-Nonce": nonce,
-      "X-Ca-Signature": signature,
-      "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp"
-    },
-    timeout: 20000
-  });
+  let response;
+  try {
+    response = await axios.post(url, body, {
+      httpsAgent,
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "*/*",
+        "X-Ca-Key": HIK_APP_KEY,
+        "X-Ca-Timestamp": timestamp,
+        "X-Ca-Nonce": nonce,
+        "X-Ca-Signature": signature,
+        "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp"
+      },
+      timeout: 20000
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    const result = error.response?.data;
+    const detalleHik = result
+      ? ` HikCentral code=${result.code ?? "sin código"}; msg=${result.msg ?? "sin mensaje"}; trace_id=${result.data?.traceId ?? result.traceId ?? result.data?.trace_id ?? result.trace_id ?? "no disponible"}.`
+      : "";
+    const detalleRed = error.code ? ` Código de red: ${error.code}.` : "";
+    throw new Error(
+      `No se pudo completar la asignación en HikCentral.${status ? ` HTTP ${status}.` : ""}${detalleHik}${detalleRed}${!status && !error.code ? ` Detalle: ${error.message}` : ""}`
+    );
+  }
 
-  return response.data;
+  const result = response.data;
+  if (!result || (result.code !== undefined && String(result.code) !== "0")) {
+    const traceId = result?.data?.traceId || result?.traceId || result?.data?.trace_id || result?.trace_id;
+    throw new Error(
+      `HikCentral rechazó la asignación: code=${result?.code ?? "sin código"}; msg=${result?.msg || "respuesta no válida"}${traceId ? `; trace_id=${traceId}` : ""}.`
+    );
+  }
+
+  console.log("[HikCentral] Asignación de estudiante: respuesta recibida.", JSON.stringify(result));
+  return result;
 }
 
 /**
