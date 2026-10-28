@@ -4,7 +4,8 @@ import {
   obtenerSalidasHoy,
   obtenerPendientes,
   obtenerActividadReciente,
-  obtenerSalidasPorFecha
+  obtenerSalidasPorFecha,
+  obtenerNivelesAcceso
 } from "../controllers/salidasController.js";
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.get("/hoy", obtenerSalidasHoy);
 router.get("/pendientes", obtenerPendientes);
 router.get("/actividad", obtenerActividadReciente);
 router.get("/reporte", obtenerSalidasPorFecha);
+router.get("/niveles-acceso", obtenerNivelesAcceso);
 
 export default router;
