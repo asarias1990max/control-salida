@@ -148,10 +148,133 @@ export async function obtenerNivelesAccesoHik() {
   return niveles.map((item) => ({
     id: String(item.privilegeGroupId ?? ""),
     nombre: String(item.privilegeGroupName ?? ""),
-    descripcion: String(item.description ?? "")
+    descripcion: String(item.description ?? ""),
+    datosOriginales: item
   })).filter((item) => item.id && item.nombre);
 }
 
+
+
+function extraerHoraSalidaNivel(texto) {
+  const valor = String(texto || "");
+  const patrones = [
+    /(?:salida|exit)[^0-9]{0,30}(\d{1,2})\s*[h:]\s*(\d{2})/i,
+    /\b(\d{1,2}):(\d{2})\b/
+  ];
+  for (const patron of patrones) {
+    const match = valor.match(patron);
+    if (!match) continue;
+    const hora = Number(match[1]);
+    const minuto = Number(match[2]);
+    if (hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59) {
+      return String(hora).padStart(2, "0") + ":" + String(minuto).padStart(2, "0") + ":00";
+    }
+  }
+  return null;
+}
+
+async function postArtemis(path, body) {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID();
+  const signature = generarFirma("POST", path, timestamp, nonce);
+  const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+  const response = await axios.post(HIK_BASE_URL + path, body, {
+    httpsAgent, timeout: 25000,
+    headers: { "Content-Type": "application/json", "Accept": "*/*", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
+  });
+  if (!response.data || String(response.data.code) !== "0") {
+    throw new Error("HikCentral " + path + ": code=" + (response.data?.code ?? "sin código") + "; msg=" + (response.data?.msg || "respuesta no válida"));
+  }
+  return response.data.data || {};
+}
+
+/**
+ * Sincroniza niveles y sus personas desde HikCentral a Supabase.
+ * Los horarios solo se interpretan cuando aparecen explícitamente en el nombre/descripción.
+ */
+export async function sincronizarNivelesYAsignacionesHik() {
+  if (!HIK_BASE_URL || !HIK_APP_KEY || !HIK_APP_SECRET) throw new Error("Falta configurar HikCentral.");
+  const niveles = await obtenerNivelesAccesoHik();
+  const listaNiveles = [];
+  const asignaciones = [];
+  const estudiantesResult = await supabase.from("estudiantes")
+    .select("id,codigo,codigo_hik,apellidos,nombres,estado")
+    .eq("estado", true)
+    .not("codigo_hik", "is", null);
+  if (estudiantesResult.error) throw new Error("No se pudieron cargar estudiantes: " + estudiantesResult.error.message);
+  const estudiantes = estudiantesResult.data || [];
+  const estudiantePorCodigoHik = new Map(estudiantes.map(e => [String(e.codigo_hik || "").trim().toLowerCase(), e]).filter(([k]) => k));
+  let personasConsultadas = 0;
+  let personasSinCoincidencia = 0;
+
+  for (const nivel of niveles) {
+    const groupOriginal = nivel.datosOriginales || {};
+    const textoNivel = [nivel.nombre, nivel.descripcion, JSON.stringify(groupOriginal)].filter(Boolean).join(" ");
+    const horaSalida = extraerHoraSalidaNivel(textoNivel);
+    listaNiveles.push({
+      privilege_group_id: nivel.id,
+      nombre: nivel.nombre,
+      descripcion: nivel.descripcion || null,
+      hora_salida: horaSalida,
+      fuente_horario: horaSalida ? "API HikCentral: nombre/descripción del nivel" : null,
+      datos_originales: groupOriginal,
+      sincronizado_en: new Date().toISOString()
+    });
+
+    const data = await postArtemis(ACCESS_LEVEL_PERSONS_PATH, { pageNo: 1, pageSize: 500, type: 1, privilegeGroupId: String(nivel.id) });
+    const personas = Array.isArray(data.list) ? data.list
+      : Array.isArray(data.personList) ? data.personList
+      : Array.isArray(data.persons) ? data.persons
+      : Array.isArray(data.records) ? data.records
+      : Array.isArray(data) ? data : [];
+    const ids = [...new Set(personas.map(p => String(p.id ?? p.personId ?? p.personCode ?? "").trim()).filter(Boolean))];
+    for (let i = 0; i < ids.length; i += 10) {
+      const lote = ids.slice(i, i + 10);
+      const detalles = await Promise.all(lote.map(async personId => {
+        try {
+          const infoData = await postArtemis("/artemis/api/resource/v1/person/personId/personInfo", { personId });
+          return { personId, info: infoData };
+        } catch (error) {
+          console.warn("[HikCentral] No se pudo resolver persona para nivel", nivel.nombre, personId, error.message);
+          return null;
+        }
+      }));
+      for (const detalle of detalles.filter(Boolean)) {
+        personasConsultadas++;
+        const info = detalle.info || {};
+        const claves = [info.personCode, info.personId, detalle.personId].map(v => String(v ?? "").trim().toLowerCase()).filter(Boolean);
+        const estudiante = claves.map(k => estudiantePorCodigoHik.get(k)).find(Boolean);
+        if (!estudiante) { personasSinCoincidencia++; continue; }
+        asignaciones.push({
+          estudiante_id: estudiante.id,
+          privilege_group_id: String(nivel.id),
+          person_id_hik: String(info.personId || detalle.personId),
+          datos_originales: { personId: detalle.personId, personCode: info.personCode || null, personName: info.personName || null }
+        });
+      }
+    }
+  }
+
+  if (listaNiveles.length) {
+    const { error } = await supabase.from("niveles_acceso_hikcentral").upsert(listaNiveles, { onConflict: "privilege_group_id" });
+    if (error) throw new Error("No se pudieron guardar niveles HikCentral: " + error.message);
+  }
+  // Reemplazar la foto actual de asignaciones: conserva histórico de eventos, pero refleja los niveles vigentes.
+  const { error: borrarError } = await supabase.from("estudiante_niveles_acceso_hikcentral").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (borrarError) throw new Error("No se pudieron actualizar asignaciones anteriores: " + borrarError.message);
+  for (let i = 0; i < asignaciones.length; i += 500) {
+    const lote = asignaciones.slice(i, i + 500);
+    const { error } = await supabase.from("estudiante_niveles_acceso_hikcentral").upsert(lote, { onConflict: "estudiante_id,privilege_group_id" });
+    if (error) throw new Error("No se pudieron guardar asignaciones de estudiantes: " + error.message);
+  }
+  return {
+    nivelesSincronizados: listaNiveles.length,
+    asignacionesSincronizadas: asignaciones.length,
+    personasConsultadas,
+    personasSinCoincidencia,
+    horariosDetectadosDesdeNombreDescripcion: listaNiveles.filter(n => n.hora_salida).length
+  };
+}
 
 /**
  * Obtiene el total de personas asociadas a cada nivel de acceso.
