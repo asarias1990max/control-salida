@@ -360,7 +360,7 @@
           return;
         }
 
-        select.add(new Option("Todos los niveles de acceso", ""));
+        select.add(new Option("Seleccione un nivel de acceso", ""));
         niveles.forEach((nivel) => {
           select.add(new Option(nivel.nombre, nivel.id));
         });
@@ -369,8 +369,9 @@
           select.value = nivelSeleccionado;
         }
 
+        select.onchange = cargarConteosNivelesAcceso;
         mensaje.className = "alert alert-success";
-        mensaje.textContent = "Se cargaron " + niveles.length + " nivel(es) de acceso desde HikCentral.";
+        mensaje.textContent = "Se cargaron " + niveles.length + " nivel(es) de acceso desde HikCentral. Seleccione uno para consultar sus alumnos.";
       } catch (error) {
         console.error("Error cargando niveles de acceso:", error);
         select.innerHTML = '<option value="">Error al cargar niveles de acceso</option>';
@@ -385,11 +386,19 @@
     async function cargarConteosNivelesAcceso() {
       const contenedor = document.getElementById("dsTarjetasNiveles");
       const mensaje = document.getElementById("dsMensajeConteos");
-      if (!contenedor || !mensaje) return;
+      const select = document.getElementById("nivelAccesoSalida");
+      if (!contenedor || !mensaje || !select) return;
       contenedor.replaceChildren();
-      mensaje.textContent = "Consultando conteos de HikCentral...";
+      const nivelId = select.value;
+      if (!nivelId) {
+        mensaje.className = "small text-muted mb-3";
+        mensaje.textContent = "Selecciona un nivel de acceso para ver únicamente los alumnos asociados a ese nivel.";
+        return;
+      }
+      mensaje.className = "small text-muted mb-3";
+      mensaje.textContent = "Consultando alumnos del nivel seleccionado...";
       try {
-        const respuesta = await fetch("/api/salidas/niveles-acceso/conteos", { headers: { Accept: "application/json" } });
+        const respuesta = await fetch("/api/salidas/niveles-acceso/conteos?nivelId=" + encodeURIComponent(nivelId), { headers: { Accept: "application/json" } });
         const resultado = await respuesta.json();
         if (!respuesta.ok || !resultado.ok) throw new Error(resultado.message || "No fue posible obtener los conteos.");
         const niveles = Array.isArray(resultado.data) ? resultado.data : [];
@@ -418,8 +427,8 @@
           columna.append(tarjeta);
           contenedor.append(columna);
         });
-        const totalGeneral = niveles.reduce((suma, nivel) => suma + (Number(nivel.totalAlumnos) || 0), 0);
-        mensaje.textContent = "Se consultaron " + niveles.length + " niveles. Suma de asociaciones por nivel: " + totalGeneral + ".";
+        mensaje.className = "small text-muted mb-3";
+        mensaje.textContent = "Mostrando el conteo del nivel de acceso seleccionado: " + (niveles[0].nombre || "nivel seleccionado") + ".";
       } catch (error) {
         console.error("Error cargando conteos de niveles:", error);
         mensaje.className = "small text-danger";
