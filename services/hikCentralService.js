@@ -395,44 +395,54 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
   }
   // Algunos modelos de HikCentral no incluyen personName en el evento.
   // Resolver los personId disponibles mediante el endpoint de detalle de persona.
-  const personInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
-  const idsSinNombre = [...new Set(eventos
-    .filter(e => !(e.personName || e.name || e.employeeName || e.personInfo?.personName || e.person?.name))
-    .map(e => e.personId || e.personInfo?.personId)
-    .filter(v => v !== undefined && v !== null && String(v).trim() !== "")
-    .map(String))];
-  const nombresPorId = new Map();
+  const personIdInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
+  const personCodeInfoPath = "/artemis/api/resource/v1/person/personCode/personInfo";
+  const personasPorClave = new Map();
+  const clavesPendientes = new Map();
 
-  for (let i = 0; i < idsSinNombre.length; i += 10) {
-    const lote = idsSinNombre.slice(i, i + 10);
-    const detalles = await Promise.all(lote.map(async personId => {
+  eventos.forEach(evento => {
+    if (evento.personName || evento.name || evento.employeeName || evento.personInfo?.personName || evento.person?.name) return;
+    const personCode = evento.personCode || evento.personInfo?.personCode || evento.employeeNo || evento.employeeNoString;
+    const personId = evento.personId || evento.personInfo?.personId;
+    if (personCode) clavesPendientes.set("code:" + String(personCode), { tipo: "code", valor: String(personCode) });
+    else if (personId) clavesPendientes.set("id:" + String(personId), { tipo: "id", valor: String(personId) });
+  });
+
+  const pendientes = [...clavesPendientes.values()];
+  for (let i = 0; i < pendientes.length; i += 10) {
+    const lote = pendientes.slice(i, i + 10);
+    const detalles = await Promise.all(lote.map(async clave => {
+      const ruta = clave.tipo === "code" ? personCodeInfoPath : personIdInfoPath;
       const ts = Date.now().toString();
       const nonceInfo = crypto.randomUUID();
-      const firmaInfo = generarFirma("POST", personInfoPath, ts, nonceInfo);
+      const firmaInfo = generarFirma("POST", ruta, ts, nonceInfo);
       try {
-        const respInfo = await axios.post(HIK_BASE_URL + personInfoPath, { personId }, {
+        const bodyInfo = clave.tipo === "code" ? { personCode: clave.valor } : { personId: clave.valor };
+        const respInfo = await axios.post(HIK_BASE_URL + ruta, bodyInfo, {
           httpsAgent, timeout: 20000,
           headers: { "Content-Type": "application/json", "Accept": "*/*", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": ts, "X-Ca-Nonce": nonceInfo, "X-Ca-Signature": firmaInfo, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
         });
         const resultInfo = respInfo.data;
         if (!resultInfo || String(resultInfo.code) !== "0") {
-          console.warn("[HikCentral] No se pudo resolver nombre para personId", personId, resultInfo?.msg || resultInfo?.code);
+          console.warn("[HikCentral] No se pudo resolver nombre por " + clave.tipo, resultInfo?.msg || resultInfo?.code);
           return null;
         }
         const info = resultInfo.data || {};
         const nombre = info.personName || [info.personGivenName, info.personFamilyName].filter(Boolean).join(" ") || info.name;
-        return nombre ? [personId, String(nombre).trim()] : null;
+        return nombre ? [clave.tipo + ":" + clave.valor, String(nombre).trim()] : null;
       } catch (error) {
-        console.warn("[HikCentral] Error al resolver personId", personId, error.response?.data?.msg || error.message);
+        console.warn("[HikCentral] Error al resolver persona por " + clave.tipo, error.response?.data?.msg || error.message);
         return null;
       }
     }));
-    detalles.filter(Boolean).forEach(([id, nombre]) => nombresPorId.set(id, nombre));
+    detalles.filter(Boolean).forEach(([clave, nombre]) => personasPorClave.set(clave, nombre));
   }
 
   const eventosConNombre = eventos.map(evento => {
-    const id = evento.personId || evento.personInfo?.personId;
-    const nombre = evento.personName || evento.name || evento.employeeName || evento.personInfo?.personName || evento.person?.name || (id != null ? nombresPorId.get(String(id)) : "");
+    const personCode = evento.personCode || evento.personInfo?.personCode || evento.employeeNo || evento.employeeNoString;
+    const personId = evento.personId || evento.personInfo?.personId;
+    const clave = personCode ? "code:" + String(personCode) : personId ? "id:" + String(personId) : "";
+    const nombre = evento.personName || evento.name || evento.employeeName || evento.personInfo?.personName || evento.person?.name || (clave ? personasPorClave.get(clave) : "");
     return nombre ? { ...evento, personName: nombre } : evento;
   });
 
