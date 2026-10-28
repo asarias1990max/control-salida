@@ -11,6 +11,7 @@ const HIK_APP_SECRET = process.env.HIK_APP_SECRET;
 
 const ADD_PERSONS_PATH = "/artemis/api/acs/v1/privilege/group/single/addPersons";
 const ACCESS_LEVELS_PATH = "/artemis/api/acs/v1/privilege/group";
+const ACCESS_LEVEL_PERSONS_PATH = "/artemis/api/acs/v1/privilege/group/single/personList";
 
 function generarFirma(method, path, timestamp, nonce) {
   const stringToSign =
@@ -147,4 +148,68 @@ export async function obtenerNivelesAccesoHik() {
     nombre: String(item.privilegeGroupName ?? ""),
     descripcion: String(item.description ?? "")
   })).filter((item) => item.id && item.nombre);
+}
+
+
+/**
+ * Obtiene el total de personas asociadas a cada nivel de acceso.
+ * API documentada: POST /artemis/api/acs/v1/privilege/group/single/personList
+ * Se solicita pageSize=1 porque HikCentral devuelve el total en data.total.
+ */
+export async function obtenerConteoPersonasNivelesHik() {
+  const niveles = await obtenerNivelesAccesoHik();
+  const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+  const conteos = await Promise.all(niveles.map(async (nivel) => {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomUUID();
+    const body = {
+      pageNo: 1,
+      pageSize: 1,
+      type: 1,
+      privilegeGroupId: String(nivel.id)
+    };
+    const signature = generarFirma("POST", ACCESS_LEVEL_PERSONS_PATH, timestamp, nonce);
+
+    let response;
+    try {
+      response = await axios.post(HIK_BASE_URL + ACCESS_LEVEL_PERSONS_PATH, body, {
+        httpsAgent,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "*/*",
+          "X-Ca-Key": HIK_APP_KEY,
+          "X-Ca-Timestamp": timestamp,
+          "X-Ca-Nonce": nonce,
+          "X-Ca-Signature": signature,
+          "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp"
+        },
+        timeout: 20000
+      });
+    } catch (error) {
+      const status = error.response?.status;
+      const result = error.response?.data;
+      const detalle = result
+        ? ` code=${result.code ?? "sin código"}; msg=${result.msg ?? "sin mensaje"}.`
+        : error.code ? ` error de red=${error.code}.` : ` detalle=${error.message}.`;
+      throw new Error(`No se pudo consultar el conteo del nivel "${nivel.nombre}" (ID ${nivel.id}).${status ? ` HTTP ${status}.` : ""}${detalle}`);
+    }
+
+    const result = response.data;
+    if (!result || String(result.code) !== "0") {
+      const traceId = result?.data?.traceId || result?.traceId || result?.data?.trace_id || result?.trace_id;
+      throw new Error(
+        `HikCentral rechazó el conteo del nivel "${nivel.nombre}" (ID ${nivel.id}): code=${result?.code ?? "sin código"}; msg=${result?.msg || "respuesta no válida"}${traceId ? `; trace_id=${traceId}` : ""}.`
+      );
+    }
+
+    const total = Number(result.data?.total);
+    if (!Number.isFinite(total) || total < 0) {
+      throw new Error(`HikCentral no devolvió un total válido para el nivel "${nivel.nombre}" (ID ${nivel.id}).`);
+    }
+
+    return { id: nivel.id, nombre: nivel.nombre, descripcion: nivel.descripcion, totalAlumnos: total };
+  }));
+
+  return conteos;
 }
