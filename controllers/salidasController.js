@@ -200,7 +200,7 @@ export async function obtenerNivelesAcceso(req, res) {
     console.error("Error consultando niveles de acceso HikCentral:", error.message);
     return res.status(502).json({
       ok: false,
-      message: "No se pudieron cargar los niveles de acceso desde HikCentral."
+      message: error.message || "No se pudieron cargar los niveles de acceso desde HikCentral."
     });
   }
 }
