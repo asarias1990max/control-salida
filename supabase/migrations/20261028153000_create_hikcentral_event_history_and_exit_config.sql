@@ -55,3 +55,31 @@ on conflict (nivel_acceso) do update set
   puertas = excluded.puertas,
   fuente = excluded.fuente,
   updated_at = now();
+
+create table if not exists public.niveles_acceso_hikcentral (
+  privilege_group_id text primary key,
+  nombre text not null,
+  descripcion text,
+  hora_salida time,
+  fuente_horario text,
+  datos_originales jsonb not null default '{}'::jsonb,
+  sincronizado_en timestamptz not null default now()
+);
+
+create table if not exists public.estudiante_niveles_acceso_hikcentral (
+  id uuid primary key default gen_random_uuid(),
+  estudiante_id uuid not null references public.estudiantes(id) on delete cascade,
+  privilege_group_id text not null references public.niveles_acceso_hikcentral(privilege_group_id) on delete cascade,
+  person_id_hik text,
+  asignado_en timestamptz not null default now(),
+  datos_originales jsonb not null default '{}'::jsonb,
+  unique (estudiante_id, privilege_group_id)
+);
+
+create index if not exists idx_estudiante_niveles_estudiante
+  on public.estudiante_niveles_acceso_hikcentral (estudiante_id);
+create index if not exists idx_estudiante_niveles_grupo
+  on public.estudiante_niveles_acceso_hikcentral (privilege_group_id);
+
+alter table public.niveles_acceso_hikcentral enable row level security;
+alter table public.estudiante_niveles_acceso_hikcentral enable row level security;
