@@ -333,7 +333,38 @@ export async function obtenerPersonasNivelAccesoHik(nivelId = "") {
 
 const DOOR_EVENTS_PATH = "/artemis/api/acs/v1/door/events";
 
-export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
+export async function obtenerPuertasHik() {
+  if (!HIK_BASE_URL || !HIK_APP_KEY || !HIK_APP_SECRET) throw new Error("Falta configurar HikCentral.");
+  const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+  const puertas = [];
+  let pageNo = 1;
+  let total = Infinity;
+  const pageSize = 500;
+  while (puertas.length < total) {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomUUID();
+    const body = { pageNo, pageSize };
+    const signature = generarFirma("POST", ACCESS_DOORS_PATH, timestamp, nonce, "application/json");
+    const response = await axios.post(HIK_BASE_URL + ACCESS_DOORS_PATH, body, {
+      httpsAgent, timeout: 30000,
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
+    });
+    const result = response.data;
+    if (!result || String(result.code) !== "0") throw new Error("No se pudieron obtener las puertas de HikCentral: code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
+    const data = result.data || {};
+    const list = Array.isArray(data.list) ? data.list : [];
+    total = Number(data.total ?? list.length);
+    puertas.push(...list);
+    if (!list.length || list.length < pageSize || puertas.length >= total) break;
+    pageNo++;
+  }
+  return puertas.map(p => ({
+    doorIndexCode: String(p.doorIndexCode ?? ""),
+    doorName: String(p.doorName ?? p.name ?? p.doorNo ?? p.doorIndexCode ?? "Puerta sin nombre")
+  })).filter(p => p.doorIndexCode);
+}
+
+export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosPuerta = []) {
   if (!HIK_BASE_URL || !HIK_APP_KEY || !HIK_APP_SECRET) throw new Error("Falta configurar HikCentral.");
   const now = new Date();
   const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
@@ -342,36 +373,14 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin) {
   if (inicio > fin) throw new Error("La fecha inicial no puede ser posterior a la fecha final.");
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
-  // HikCentral requiere doorIndexCodes en la consulta de eventos. Obtener primero
-  // los códigos reales de los puntos de acceso configurados, sin inventarlos.
-  const puertas = [];
-  let paginaPuertas = 1;
-  let totalPuertas = Infinity;
-  const tamanioPuertas = 500;
-  while (puertas.length < totalPuertas) {
-    const tsPuertas = Date.now().toString();
-    const noncePuertas = crypto.randomUUID();
-    const bodyPuertas = { pageNo: paginaPuertas, pageSize: tamanioPuertas };
-    const firmaPuertas = generarFirma("POST", ACCESS_DOORS_PATH, tsPuertas, noncePuertas, "application/json");
-    const respPuertas = await axios.post(HIK_BASE_URL + ACCESS_DOORS_PATH, bodyPuertas, {
-      httpsAgent, timeout: 30000,
-      headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": tsPuertas, "X-Ca-Nonce": noncePuertas, "X-Ca-Signature": firmaPuertas, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
-    });
-    const resPuertas = respPuertas.data;
-    if (!resPuertas || String(resPuertas.code) !== "0") {
-      throw new Error("No se pudieron obtener los puntos de acceso de HikCentral: code=" + (resPuertas?.code ?? "sin código") + "; msg=" + (resPuertas?.msg || "respuesta no válida"));
-    }
-    const dataPuertas = resPuertas.data || {};
-    const listaPuertas = Array.isArray(dataPuertas.list) ? dataPuertas.list : [];
-    totalPuertas = Number(dataPuertas.total ?? listaPuertas.length);
-    puertas.push(...listaPuertas);
-    if (!listaPuertas.length || listaPuertas.length < tamanioPuertas || puertas.length >= totalPuertas) break;
-    paginaPuertas++;
-  }
-  const doorIndexCodes = [...new Set(puertas.map(p => p.doorIndexCode).filter(v => v !== undefined && v !== null && String(v).trim() !== "").map(String))].filter(code => ["8", "23"].includes(code));
-  if (!doorIndexCodes.length) throw new Error("HikCentral no devolvió códigos de puntos de acceso; no se puede consultar el historial de eventos.");
-
-  console.log("[HikCentral] Puntos de acceso disponibles para eventos:", doorIndexCodes.length);
+  const puertas = await obtenerPuertasHik();
+  const codigosDisponibles = puertas.map(p => p.doorIndexCode);
+  const solicitados = Array.isArray(codigosPuerta) ? codigosPuerta.map(String) : [];
+  const doorIndexCodes = solicitados.length
+    ? codigosDisponibles.filter(code => solicitados.includes(code))
+    : codigosDisponibles;
+  if (!doorIndexCodes.length) throw new Error("Selecciona al menos una puerta válida de HikCentral.");
+  console.log("[HikCentral] Puntos de acceso seleccionados para eventos:", doorIndexCodes.length);
 
   const eventos = [];
   let pageNo = 1;
