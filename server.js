@@ -116,20 +116,23 @@ function iniciarSincronizacionAutomaticaHik() {
     const ahora = fechaHoraGuayaquil();
     if (ahora.hora < 6 || ahora.hora >= 20) return;
     sincronizacionEnCurso = true;
+    console.log("[HikCentral] Inicio de sincronización automática para", ahora.fecha);
     try {
-      console.log("[HikCentral] Inicio de sincronización automática para", ahora.fecha);
       const eventos = await obtenerDashboardEventosHik(ahora.fecha, ahora.fecha, []);
       console.log("[HikCentral] Sincronización automática de eventos completada:", JSON.stringify({
         fecha: ahora.fecha, eventosConsultados: eventos.totalEventos, eventosGuardados: eventos.eventosGuardados || 0
       }));
-
+    } catch (error) {
+      console.error("[HikCentral] Falló la sincronización automática de eventos; se reintentará:", error.message);
+    }
+    try {
       if (ultimaFechaNiveles !== ahora.fecha) {
         const niveles = await sincronizarNivelesYAsignacionesHik();
         ultimaFechaNiveles = ahora.fecha;
         console.log("[HikCentral] Sincronización diaria de niveles completada:", JSON.stringify(niveles));
       }
     } catch (error) {
-      console.error("[HikCentral] Falló la sincronización automática; se reintentará en el siguiente ciclo:", error.message);
+      console.error("[HikCentral] Falló la sincronización diaria de niveles; se reintentará:", error.message);
     } finally {
       sincronizacionEnCurso = false;
     }
