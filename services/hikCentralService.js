@@ -206,6 +206,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
   const estudiantePorCodigoHik = new Map(estudiantes.map(e => [String(e.codigo_hik || "").trim().toLowerCase(), e]).filter(([k]) => k));
   let personasConsultadas = 0;
   let personasSinCoincidencia = 0;
+  let erroresDetallePersona = 0;
   const cacheDetallesPersona = new Map();
   const inicioSincronizacion = new Date().toISOString();
 
@@ -247,6 +248,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
           const infoData = await postArtemis("/artemis/api/resource/v1/person/personId/personInfo", { personId });
           return { personId, info: infoData };
         } catch (error) {
+          erroresDetallePersona++;
           console.warn("[HikCentral] No se pudo resolver persona para nivel", nivel.nombre, personId, error.message);
           return { personId, info: null };
         }
@@ -270,6 +272,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
     }
   }
 
+  if (erroresDetallePersona > 0) throw new Error("La sincronización se detuvo porque falló la consulta de " + erroresDetallePersona + " detalles de personas en HikCentral. No se reemplazaron las asignaciones existentes; revisa el log del servidor.");
   if (listaNiveles.length) {
     const { error } = await supabase.from("niveles_acceso_hikcentral").upsert(listaNiveles, { onConflict: "privilege_group_id" });
     if (error) throw new Error("No se pudieron guardar niveles HikCentral: " + error.message);
