@@ -62,6 +62,8 @@ create table if not exists public.niveles_acceso_hikcentral (
   descripcion text,
   hora_salida time,
   fuente_horario text,
+  time_schedule_index_code text,
+  time_schedule_name text,
   datos_originales jsonb not null default '{}'::jsonb,
   sincronizado_en timestamptz not null default now()
 );
@@ -83,3 +85,11 @@ create index if not exists idx_estudiante_niveles_grupo
 
 alter table public.niveles_acceso_hikcentral enable row level security;
 alter table public.estudiante_niveles_acceso_hikcentral enable row level security;
+
+create table if not exists public.horarios_acceso_hikcentral (
+  index_code text primary key,
+  nombre text not null,
+  datos_originales jsonb not null default '{}'::jsonb,
+  sincronizado_en timestamptz not null default now()
+);
+alter table public.horarios_acceso_hikcentral enable row level security;
