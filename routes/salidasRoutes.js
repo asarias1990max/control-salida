@@ -64,6 +64,8 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       eventosPorEstudiante.set(evento.estudiante_id, lista);
     });
     const horaLocal = valor => new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(valor));
+    const eventosSincronizados = eventosResult.data || [];
+    const hayEventosSincronizados = eventosSincronizados.length > 0;
     const resumen = (estudiantesResult.data || []).map(estudiante => {
       const niveles = asignacionesPorEstudiante.get(estudiante.id) || [];
       const eventos = eventosPorEstudiante.get(estudiante.id) || [];
@@ -94,7 +96,8 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         entrada_concedida: entradasConcedidas.length > 0,
         salida_concedida: salidasConcedidas.length > 0,
         entrada_y_salida: entradasConcedidas.length > 0 && salidasConcedidas.length > 0,
-        ausente: entradas.length === 0 && salidas.length === 0,
+        // No marcar a todos como ausentes si la sincronización aún no ha cargado eventos.
+        ausente: hayEventosSincronizados && entradas.length === 0 && salidas.length === 0,
         error_entrada: entradasError.length > 0,
         error_salida: salidasError.length > 0,
         fuera_horario: salidasFueraHorario.length > 0,
@@ -138,7 +141,24 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       const estudiantes = resumen.filter(r => r.flags[key]).length;
       return { key, indicador: label, estudiantes, total, porcentaje: total ? Number((estudiantes * 100 / total).toFixed(2)) : 0 };
     });
-    return res.json({ ok: true, fecha, totalEstudiantes: total, indicadores, data: resumen });
+    return res.json({
+      ok: true,
+      fecha,
+      totalEstudiantes: total,
+      indicadores,
+      data: resumen,
+      fuentes: {
+        estudiantes: total,
+        eventosHikCentral: eventosSincronizados.length,
+        asignacionesAcceso: (asignacionesResult.data || []).length,
+        reglasSalida: configs.length,
+        eventosDisponibles: hayEventosSincronizados
+      },
+      advertencias: [
+        ...(!hayEventosSincronizados ? ["No hay eventos de HikCentral sincronizados para esta fecha. Los indicadores de entrada, salida y ausencia no deben interpretarse como resultados reales."] : []),
+        ...(total === 0 ? ["No hay estudiantes activos en Supabase."] : [])
+      ]
+    });
   } catch (error) {
     console.error("Error generando resumen diario de entradas y salidas:", error.message);
     return res.status(500).json({ ok: false, message: error.message || "No se pudo generar el control diario." });
