@@ -10,7 +10,7 @@
   .ds-dashboard .ds-hero {
     position: relative;
     overflow: hidden;
-    padding: 1.45rem 1.5rem;
+    padding: .8rem 1rem;
     border: 1px solid #e1e8f5;
     border-radius: 20px;
     background: linear-gradient(120deg, #fff 0%, #f4f7ff 65%, #edf3ff 100%);
@@ -30,9 +30,9 @@
   .ds-dashboard .ds-title-icon {
     display: grid;
     place-items: center;
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
     color: #2449a5;
     border-radius: 15px;
     background: #e8efff;
@@ -53,8 +53,8 @@
   }
   .ds-dashboard .ds-subtitle { color: var(--ds-muted); font-size: .91rem; }
   .ds-dashboard .ds-date-panel {
-    min-width: 235px;
-    padding: .85rem;
+    min-width: 360px;
+    padding: .65rem;
     border: 1px solid #e1e8f5;
     border-radius: 14px;
     background: rgba(255,255,255,.86);
@@ -66,7 +66,9 @@
     font-weight: 700;
   }
   .ds-dashboard .form-control, .ds-dashboard .form-select {
-    min-height: 43px;
+    min-height: 36px;
+    padding-top: .35rem;
+    padding-bottom: .35rem;
     border-color: #dce3ee;
     border-radius: 10px;
     color: #24324a;
@@ -77,7 +79,9 @@
     box-shadow: 0 0 0 .2rem rgba(55, 93, 185, .12);
   }
   .ds-dashboard .btn-primary {
-    min-height: 43px;
+    min-height: 36px;
+    padding-top: .4rem;
+    padding-bottom: .4rem;
     border: 0;
     border-radius: 10px;
     padding-inline: 1rem;
@@ -166,7 +170,7 @@
   .ds-dashboard .ds-table-wrap thead th { box-shadow: 0 1px 0 #e5eaf2; }
   .ds-dashboard .ds-empty { padding: 2rem 1rem !important; color: #8793a7 !important; }
   @media (max-width: 767.98px) {
-    .ds-dashboard .ds-hero { padding: 1.1rem; border-radius: 16px; }
+    .ds-dashboard .ds-hero { padding: .8rem; border-radius: 16px; }
     .ds-dashboard .ds-date-panel { width: 100%; }
     .ds-dashboard .ds-date-panel .ds-date-controls { display: flex; align-items: end; gap: .5rem; }
     .ds-dashboard .ds-date-panel .ds-date-controls > div { flex: 1; min-width: 0; }
@@ -187,7 +191,7 @@
           <div class="ds-subtitle">Resumen diario de accesos y verificación de estudiantes.</div>
         </div>
       </div>
-      <div class="ds-date-panel" style="min-width:min(100%, 430px)">
+      <div class="ds-date-panel" style="min-width:min(100%, 390px)">
         <div class="row g-2">
           <div class="col-12">
             <label for="dsFechaResumen" class="form-label mb-1"><i class="bi bi-calendar3 me-1"></i>Fecha de consulta</label>
