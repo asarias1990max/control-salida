@@ -18,7 +18,8 @@ const erroresSincronizacionEventosDiarios = new Map();
 const resultadosSincronizacionEventosDiarios = new Map();
 
 function iniciarSincronizacionEventosDiarios(fecha) {
-  if (sincronizacionesEventosDiarios.has(fecha)) return;
+  const existente = sincronizacionesEventosDiarios.get(fecha);
+  if (existente) return existente;
   const tarea = obtenerDashboardEventosHik(fecha, fecha)
     .then(resultado => {
       resultadosSincronizacionEventosDiarios.set(fecha, resultado);
@@ -33,6 +34,7 @@ function iniciarSincronizacionEventosDiarios(fecha) {
     })
     .finally(() => sincronizacionesEventosDiarios.delete(fecha));
   sincronizacionesEventosDiarios.set(fecha, tarea);
+  return tarea;
 }
 
 router.post("/", registrarSalida);
@@ -47,10 +49,18 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
     }).format(new Date());
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
-    // La consulta inicial inicia la sincronización en segundo plano. Las consultas de sondeo
-    // usan soloLectura=1 para consultar el estado sin volver a iniciar otra sincronización.
+    // La carga inicial espera la consulta real de HikCentral. No se responde con registros
+    // antiguos de Supabase como si fueran el resultado actualizado de la fecha seleccionada.
     const soloLectura = String(req.query.soloLectura || "") === "1";
-    if (!soloLectura) iniciarSincronizacionEventosDiarios(fecha);
+    if (!soloLectura) {
+      const resultadoHik = await iniciarSincronizacionEventosDiarios(fecha);
+      if (!resultadoHik) {
+        return res.status(502).json({
+          ok: false,
+          message: erroresSincronizacionEventosDiarios.get(fecha) || "No se pudo obtener una consulta válida de HikCentral. No se mostrarán datos antiguos como si fueran actuales."
+        });
+      }
+    }
     const sincronizandoEventos = sincronizacionesEventosDiarios.has(fecha);
     const sincronizacionEventos = resultadosSincronizacionEventosDiarios.get(fecha) || null;
     const inicio = new Date(fecha + "T05:00:00.000Z");
