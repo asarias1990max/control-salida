@@ -633,7 +633,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
   for (let desde = 0; ; desde += tamanoPaginaEstudiantes) {
     const { data, error } = await supabase
       .from("estudiantes")
-      .select("codigo_hik, codigo, apellidos, nombres, seccion, curso, paralelo, estado")
+      .select("id, codigo_hik, codigo, apellidos, nombres, seccion, curso, paralelo, estado")
       .eq("estado", true)
       .not("codigo_hik", "is", null)
       .range(desde, desde + tamanoPaginaEstudiantes - 1);
