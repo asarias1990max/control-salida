@@ -598,6 +598,36 @@
       return [puerta || "Puerta no identificada", hora || "", resultado || "Resultado no identificado"].filter(Boolean).join(" - ");
     }
 
+    let resumenPaginaActual = 1;
+    let resumenTamanoPagina = 10;
+
+    function cambiarTamanoPaginaResumenHik() {
+      const select = document.getElementById("dsTamanoPagina");
+      resumenTamanoPagina = Number(select?.value || 10);
+      resumenPaginaActual = 1;
+      filtrarResumenDiarioSalidasHik();
+    }
+
+    function cambiarPaginaResumenHik(delta) {
+      resumenPaginaActual += delta;
+      filtrarResumenDiarioSalidasHik();
+    }
+
+    function actualizarPaginadorResumenHik(total) {
+      const totalPaginas = Math.max(1, Math.ceil(total / resumenTamanoPagina));
+      resumenPaginaActual = Math.min(Math.max(1, resumenPaginaActual), totalPaginas);
+      const inicio = total ? (resumenPaginaActual - 1) * resumenTamanoPagina + 1 : 0;
+      const fin = Math.min(resumenPaginaActual * resumenTamanoPagina, total);
+      const info = document.getElementById("dsInfoPagina");
+      const pagina = document.getElementById("dsPaginaActual");
+      const anterior = document.getElementById("dsPaginaAnterior");
+      const siguiente = document.getElementById("dsPaginaSiguiente");
+      if (info) info.textContent = total ? inicio + "–" + fin + " de " + total : "0 registros";
+      if (pagina) pagina.textContent = "Página " + resumenPaginaActual + " de " + totalPaginas;
+      if (anterior) anterior.disabled = resumenPaginaActual <= 1 || !total;
+      if (siguiente) siguiente.disabled = resumenPaginaActual >= totalPaginas || !total;
+    }
+
     function filtrarResumenDiarioSalidasHik(key) {
       const filtro = document.getElementById("dsFiltroIndicador");
       if (filtro && typeof key === "string") filtro.value = key;
@@ -613,14 +643,19 @@
       if (!seleccionado) {
         cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Selecciona un indicador en «VER LISTADO DE» para ver los estudiantes.</td></tr>';
         if (conteo) conteo.textContent = "";
+        actualizarPaginadorResumenHik(0);
         return;
       }
       if (!rows.length) {
         cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No hay estudiantes para este indicador.</td></tr>';
         if (conteo) conteo.textContent = "0 estudiantes";
+        actualizarPaginadorResumenHik(0);
         return;
       }
-      rows.forEach(row => {
+      const totalPaginas = Math.max(1, Math.ceil(rows.length / resumenTamanoPagina));
+      if (resumenPaginaActual > totalPaginas) resumenPaginaActual = totalPaginas;
+      const inicioPagina = (resumenPaginaActual - 1) * resumenTamanoPagina;
+      rows.slice(inicioPagina, inicioPagina + resumenTamanoPagina).forEach(row => {
         const tr = document.createElement("tr");
         const valores = [
           row.apellidos || "",
@@ -640,6 +675,7 @@
         cuerpo.append(tr);
       });
       if (conteo) conteo.textContent = (itemIndicador?.indicador || "Listado") + ": " + rows.length + " estudiantes";
+      actualizarPaginadorResumenHik(rows.length);
     }
 
     async function cargarResumenDiarioSalidasHik(soloLectura = false) {
