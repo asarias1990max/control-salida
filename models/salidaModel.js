@@ -127,7 +127,7 @@ export async function getActividadReciente(limit = 10) {
 /* =========================
    REPORTE SALIDAS POR FECHA
 ========================= */
-export async function getSalidasPorFecha(fechaInicio, fechaFin) {
+export async function getSalidasPorFecha(fechaInicio, fechaFin, horaInicio, horaFin) {
   const { data, error } = await supabase
     .from("salidas")
     .select(`
@@ -149,6 +149,8 @@ export async function getSalidasPorFecha(fechaInicio, fechaFin) {
     `)
     .gte("fecha", fechaInicio)
     .lte("fecha", fechaFin)
+    .gte("hora", horaInicio || "00:00:00")
+    .lte("hora", horaFin ? (horaFin.length === 5 ? horaFin + ":59" : horaFin) : "23:59:59")
     .order("fecha", { ascending: false })
     .order("hora", { ascending: false });
 
