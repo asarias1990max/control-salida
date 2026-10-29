@@ -10,7 +10,7 @@
   .ds-dashboard .ds-hero {
     position: relative;
     overflow: hidden;
-    padding: .8rem 1rem;
+    padding: .65rem .85rem;
     border: 1px solid #e1e8f5;
     border-radius: 20px;
     background: linear-gradient(120deg, #fff 0%, #f4f7ff 65%, #edf3ff 100%);
@@ -30,9 +30,9 @@
   .ds-dashboard .ds-title-icon {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
     color: #2449a5;
     border-radius: 15px;
     background: #e8efff;
@@ -62,13 +62,13 @@
   }
   .ds-dashboard .form-label {
     color: #52627a;
-    font-size: .78rem;
+    font-size: .72rem;
     font-weight: 700;
   }
   .ds-dashboard .form-control, .ds-dashboard .form-select {
-    min-height: 36px;
-    padding-top: .35rem;
-    padding-bottom: .35rem;
+    min-height: 32px;
+    padding-top: .2rem;
+    padding-bottom: .2rem;
     border-color: #dce3ee;
     border-radius: 10px;
     color: #24324a;
@@ -79,9 +79,9 @@
     box-shadow: 0 0 0 .2rem rgba(55, 93, 185, .12);
   }
   .ds-dashboard .btn-primary {
-    min-height: 36px;
-    padding-top: .4rem;
-    padding-bottom: .4rem;
+    min-height: 32px;
+    padding-top: .2rem;
+    padding-bottom: .2rem;
     border: 0;
     border-radius: 10px;
     padding-inline: 1rem;
@@ -191,24 +191,24 @@
           <div class="ds-subtitle">Resumen diario de accesos y verificación de estudiantes.</div>
         </div>
       </div>
-      <div class="ds-date-panel" style="min-width:min(100%, 390px)">
-        <div class="row g-2">
-          <div class="col-12">
-            <label for="dsFechaResumen" class="form-label mb-1"><i class="bi bi-calendar3 me-1"></i>Fecha de consulta</label>
+      <div class="ds-date-panel" style="width:min(100%, 430px); min-width:0">
+        <div class="row g-2 align-items-end">
+          <div class="col-7">
+            <label for="dsFechaResumen" class="form-label mb-1"><i class="bi bi-calendar3 me-1"></i>Fecha</label>
             <input id="dsFechaResumen" type="date" class="form-control" aria-label="Fecha de consulta">
           </div>
-          <div class="col-6">
-            <label for="dsHoraInicioResumen" class="form-label mb-1"><i class="bi bi-clock me-1"></i>Hora desde</label>
-            <input id="dsHoraInicioResumen" type="time" class="form-control" value="00:00" aria-label="Hora desde">
-          </div>
-          <div class="col-6">
-            <label for="dsHoraFinResumen" class="form-label mb-1"><i class="bi bi-clock-history me-1"></i>Hora hasta</label>
-            <input id="dsHoraFinResumen" type="time" class="form-control" value="23:59" aria-label="Hora hasta">
-          </div>
-          <div class="col-12">
+          <div class="col-5">
             <button type="button" class="btn btn-primary w-100" onclick="cargarResumenDiarioSalidasHik()">
               <i class="bi bi-arrow-clockwise me-1"></i>Consultar
             </button>
+          </div>
+          <div class="col-6">
+            <label for="dsHoraInicioResumen" class="form-label mb-1"><i class="bi bi-clock me-1"></i>Desde</label>
+            <input id="dsHoraInicioResumen" type="time" class="form-control" value="00:00" aria-label="Hora desde">
+          </div>
+          <div class="col-6">
+            <label for="dsHoraFinResumen" class="form-label mb-1"><i class="bi bi-clock-history me-1"></i>Hasta</label>
+            <input id="dsHoraFinResumen" type="time" class="form-control" value="23:59" aria-label="Hora hasta">
           </div>
         </div>
       </div>
