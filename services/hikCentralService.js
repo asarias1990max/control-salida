@@ -594,32 +594,36 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
   ];
   const eventos = [];
   const pageSize = 500;
+  const advertenciasConsulta = [];
   for (const tipo of tiposEvento) {
     let pageNo = 1;
     let total = Infinity;
     let recogidos = 0;
-    while (recogidos < total) {
-      const timestamp = Date.now().toString();
-      const nonce = crypto.randomUUID();
-      const body = { startTime: inicio + "T06:00:00-05:00", endTime: fin + "T20:00:00-05:00", eventType: tipo.codigo, doorIndexCodes, pageNo, pageSize, sortField: "SwipeTime", orderType: 1 };
-      const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
-      const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
-      const result = response.data;
-      if (!result || String(result.code) !== "0") throw new Error("HikCentral rechazó la consulta de eventos " + tipo.codigo + ": code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
-      const data = result.data || {};
-      const list = Array.isArray(data.list) ? data.list : Array.isArray(data.events) ? data.events : Array.isArray(data.records) ? data.records : Array.isArray(data.eventList) ? data.eventList : [];
-      if (pageNo === 1) console.log("[HikCentral] door/events:", JSON.stringify({ eventType: tipo.codigo, nombre: tipo.nombre, dataKeys: Object.keys(data), listLength: list.length, total: data.total, doorIndexCodes, startTime: body.startTime, endTime: body.endTime }));
-      total = Number(data.total ?? list.length);
-      recogidos += list.length;
-      eventos.push(...list.map(evento => ({
-        ...evento,
-        eventType: String(evento.eventType ?? evento.eventTypeCode ?? tipo.codigo),
-        eventName: evento.eventName || evento.eventTypeName || tipo.nombre
-      })));
-      if (!list.length || list.length < pageSize || recogidos >= total) break;
-      pageNo++;
+    try {
+      while (recogidos < total) {
+        const timestamp = Date.now().toString();
+        const nonce = crypto.randomUUID();
+        const body = { startTime: inicio + "T00:00:00-05:00", endTime: fin + "T23:59:59-05:00", eventType: tipo.codigo, doorIndexCodes, pageNo, pageSize, sortField: "SwipeTime", orderType: 1 };
+        const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
+        const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
+        const result = response.data;
+        if (!result || String(result.code) !== "0") throw new Error("code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
+        const data = result.data || {};
+        const list = Array.isArray(data.list) ? data.list : Array.isArray(data.events) ? data.events : Array.isArray(data.records) ? data.records : Array.isArray(data.eventList) ? data.eventList : [];
+        if (pageNo === 1) console.log("[HikCentral] door/events:", JSON.stringify({ eventType: tipo.codigo, nombre: tipo.nombre, dataKeys: Object.keys(data), listLength: list.length, total: data.total }));
+        total = Number(data.total ?? list.length);
+        recogidos += list.length;
+        eventos.push(...list.map(evento => ({ ...evento, eventType: String(evento.eventType ?? evento.eventTypeCode ?? tipo.codigo), eventName: evento.eventName || evento.eventTypeName || tipo.nombre })));
+        if (!list.length || list.length < pageSize || recogidos >= total) break;
+        pageNo++;
+      }
+    } catch (error) {
+      const aviso = "No se pudieron consultar eventos de tipo " + tipo.codigo + " (" + tipo.nombre + "): " + (error.response?.data?.msg || error.message);
+      advertenciasConsulta.push(aviso);
+      console.warn("[HikCentral]", aviso);
     }
   }
+  if (!eventos.length) throw new Error("HikCentral no devolvió eventos para ninguno de los tipos consultados. " + advertenciasConsulta.join(" | "));
   // Deduplicar por eventId si el mismo registro aparece en más de una consulta.
   const eventosUnicos = [...new Map(eventos.map((evento, i) => [String(evento.eventId || evento.eventIndexCode || [evento.eventTime || evento.SwipeTime, evento.personId, evento.doorIndexCode, evento.eventType, i].join("|")), evento])).values()];
   // La tabla estudiantes de Supabase es la fuente autorizada del dashboard.
@@ -645,29 +649,53 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     if (codigoHik) estudiantePorCodigoHik.set(codigoHik, estudiante);
   });
 
-  const eventosSoloEstudiantes = eventosUnicos.flatMap(evento => {
-    const identificadores = [
-      evento.personCode,
-      evento.personId,
-      evento.employeeNo,
-      evento.employeeNoString,
-      evento.personInfo?.personCode,
-      evento.personInfo?.personId
-    ].map(normalizarIdentificador).filter(Boolean);
-    const estudiante = identificadores.map(id => estudiantePorCodigoHik.get(id)).find(Boolean);
-    if (!estudiante) return [];
+  const personIdInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
+  const eventosSoloEstudiantes = [];
+  const cachePersonaPorId = new Map();
+  for (const evento of eventosUnicos) {
+    const identificadores = [evento.personCode, evento.employeeNo, evento.employeeNoString, evento.personInfo?.personCode, evento.personId, evento.personInfo?.personId]
+      .map(normalizarIdentificador).filter(Boolean);
+    let estudiante = identificadores.map(id => estudiantePorCodigoHik.get(id)).find(Boolean);
+    let infoPersona = evento.personInfo || null;
+    // personId de HikCentral no siempre equivale al código del estudiante; resolverlo antes de descartar el evento.
+    if (!estudiante) {
+      const personId = String(evento.personId || evento.personInfo?.personId || "").trim();
+      if (personId) {
+        if (!cachePersonaPorId.has(personId)) {
+          try {
+            const ts = Date.now().toString();
+            const nonce = crypto.randomUUID();
+            const firma = generarFirma("POST", personIdInfoPath, ts, nonce);
+            const resp = await axios.post(HIK_BASE_URL + personIdInfoPath, { personId }, {
+              httpsAgent, timeout: 20000,
+              headers: { "Content-Type": "application/json", "Accept": "*/*", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": ts, "X-Ca-Nonce": nonce, "X-Ca-Signature": firma, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" }
+            });
+            cachePersonaPorId.set(personId, resp.data && String(resp.data.code) === "0" ? (resp.data.data || null) : null);
+          } catch (error) {
+            console.warn("[HikCentral] No se pudo resolver personId de evento", personId, error.response?.data?.msg || error.message);
+            cachePersonaPorId.set(personId, null);
+          }
+        }
+        infoPersona = cachePersonaPorId.get(personId) || infoPersona;
+        const codigoResuelto = normalizarIdentificador(infoPersona?.personCode || infoPersona?.employeeNo || "");
+        if (codigoResuelto) estudiante = estudiantePorCodigoHik.get(codigoResuelto);
+      }
+    }
+    if (!estudiante) continue;
     const nombreEstudiante = [estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" ").trim();
-    return [{
+    eventosSoloEstudiantes.push({
       ...evento,
-      personName: nombreEstudiante || evento.personName || evento.name || "Estudiante",
+      personCode: evento.personCode || infoPersona?.personCode || estudiante.codigo_hik,
+      personName: nombreEstudiante || evento.personName || infoPersona?.personName || evento.name || "Estudiante",
+      personInfo: infoPersona || evento.personInfo,
       studentId: estudiante.id,
       studentCode: estudiante.codigo || "",
       studentHikCode: estudiante.codigo_hik,
       studentSection: estudiante.seccion || "",
       studentCourse: estudiante.curso || "",
       studentParallel: estudiante.paralelo || ""
-    }];
-  });
+    });
+  }
 
   console.log("[Dashboard] Filtro Supabase aplicado:", JSON.stringify({
     estudiantesActivosConCodigoHik: estudiantePorCodigoHik.size,
@@ -762,5 +790,5 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     if (error) throw new Error("No se pudieron guardar los eventos de HikCentral en Supabase: " + error.message);
   }
   console.log("[HikCentral] Persistencia diaria:", JSON.stringify({ eventosFiltrados: eventosConNombre.length, eventosGuardados: filasEventos.length }));
-  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventosConNombre.length, eventosGuardados: filasEventos.length, eventos: eventosConNombre };
+  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventosConNombre.length, eventosGuardados: filasEventos.length, advertencias: advertenciasConsulta, eventos: eventosConNombre };
 }
