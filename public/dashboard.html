@@ -576,7 +576,13 @@
           filtro.value = indicadoresDiariosData.some(item => item.key === previous) ? previous : "";
         }
         filtrarResumenDiarioSalidasHik();
-        estado.textContent = "Fecha: " + result.fecha + " · Total de estudiantes activos en la base de datos: " + result.totalEstudiantes + (result.sincronizando ? " · Actualizando eventos reales de HikCentral…" : "");
+        const advertenciasHik = Array.isArray(result.advertencias) ? result.advertencias : [];
+        const fuentesHik = result.fuentes || {};
+        const estadoBaseHik = "Fecha: " + result.fecha + " · Estudiantes activos: " + result.totalEstudiantes +
+          " · Eventos guardados: " + Number(fuentesHik.eventosHikCentral || 0) +
+          (result.sincronizando ? " · Consultando HikCentral…" : "");
+        estado.className = "small mb-2 " + (advertenciasHik.length && !result.sincronizando ? "text-danger" : "text-muted");
+        estado.textContent = estadoBaseHik + (advertenciasHik.length ? " · " + advertenciasHik.join(" | ") : "");
         // Si la sincronización sigue en curso, refrescar desde Supabase cuando termine para mostrar los datos actuales.
         if (result.sincronizando) {
           window.setTimeout(() => {
