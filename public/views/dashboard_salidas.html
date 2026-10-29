@@ -1,122 +1,38 @@
 <div class="container-fluid py-2">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div>
-      <h4 class="mb-1">Dashboard de Entradas y Salidas</h4>
-      <p class="text-muted mb-0">Consulta de eventos reales de acceso registrados en HikCentral.</p>
-    </div>
+  <div class="mb-3">
+    <h4 class="mb-1">DASHBOARD ENTRADAS Y SALIDAS DE ESTUDIANTES</h4>
     <div class="d-flex flex-wrap align-items-end gap-2">
       <div>
-        <label for="dsModoFecha" class="form-label mb-1">Periodo</label>
-        <select id="dsModoFecha" class="form-select">
-          <option value="hoy">Hoy</option>
-          <option value="rango">Rango de fechas</option>
-        </select>
+        <label for="dsFechaResumen" class="form-label mb-1">Fecha</label>
+        <input id="dsFechaResumen" type="date" class="form-control">
       </div>
-      <div id="dsRangoFechas" class="d-none gap-2">
-        <div><label for="dsFechaInicio" class="form-label mb-1">Desde</label><input id="dsFechaInicio" type="date" class="form-control"></div>
-        <div><label for="dsFechaFin" class="form-label mb-1">Hasta</label><input id="dsFechaFin" type="date" class="form-control"></div>
-      </div>
-      <div style="min-width:240px">
-        <label for="dsPuertas" class="form-label mb-1">Puntos de acceso</label>
-        <select id="dsPuertas" class="form-select" multiple size="3" aria-describedby="dsPuertasAyuda"></select>
-        <div id="dsPuertasAyuda" class="form-text">Carga todas las puertas. Usa Ctrl para seleccionar varias.</div>
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="seleccionarTodasPuertasHik(true)">Seleccionar todas</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="seleccionarTodasPuertasHik(false)">Limpiar selección</button>
-      </div>
-      <button type="button" class="btn btn-primary" onclick="cargarDashboardEventosHik()"><i class="bi bi-search me-1"></i> Consultar</button>
+      <button type="button" class="btn btn-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i>Consultar</button>
     </div>
   </div>
-  <div id="dsMensajeEstado" class="alert alert-info" role="status">Preparando consulta de HikCentral...</div>
-  <div class="card shadow-sm border-0 mb-3">
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-        <div><h5 class="mb-1">Horarios configurados de salida</h5><p class="text-muted small mb-0">Reglas iniciales trasladadas desde la pestaña Config del Excel 2026-2027.</p></div>
-        <span class="badge text-bg-light">Hora de Ecuador</span>
-      </div>
-      <div id="dsConfiguracionHorarios" class="row g-2">
-        <div class="col-12 text-muted small">Cargando horarios configurados...</div>
-      </div>
-    </div>
+  <div id="dsResumenEstado" class="small text-muted mb-2" role="status">Consultando eventos de HikCentral...</div>
+  <div class="table-responsive mb-4">
+    <table class="table table-sm table-bordered table-hover align-middle">
+      <thead class="table-light"><tr><th>INDICADOR</th><th>ESTUDIANTES</th><th>TOTAL</th><th class="text-center">%</th></tr></thead>
+      <tbody id="dsResumenIndicadores">
+        <tr><td colspan="4" class="text-center text-muted py-3">Cargando indicadores...</td></tr>
+      </tbody>
+    </table>
   </div>
-  <div class="card shadow-sm border-0 mb-3">
-    <div class="card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-        <div><h5 class="mb-1"><i class="bi bi-clock-history me-2 text-primary"></i>Histórico diario de sincronizaciones</h5>
-          <p class="text-muted small mb-0">Fotografías diarias de niveles, asignaciones, horarios y reglas. Compara cada día con el anterior.</p></div>
-        <div class="d-flex flex-wrap align-items-end gap-2">
-          <div><label for="dsHistDesde" class="form-label mb-1">Desde</label><input id="dsHistDesde" type="date" class="form-control"></div>
-          <div><label for="dsHistHasta" class="form-label mb-1">Hasta</label><input id="dsHistHasta" type="date" class="form-control"></div>
-          <button type="button" class="btn btn-outline-primary" onclick="cargarHistorialDiarioHik()"><i class="bi bi-search me-1"></i>Consultar</button>
-        </div>
-      </div>
-      <div id="dsHistIndicadores" class="row g-2 mb-3">
-        <div class="col-12 text-muted small">Cargando histórico...</div>
-      </div>
-      <div id="dsHistEstado" class="small text-muted mb-2" role="status">Consultando fotografías guardadas...</div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light"><tr><th>Fecha</th><th>Última sincronización</th><th>Niveles</th><th>Asignaciones</th><th>Horarios</th><th>Reglas</th><th>Cambio vs. día anterior</th><th>Detalle</th></tr></thead>
-          <tbody id="dsHistTabla"><tr><td colspan="8" class="text-center text-muted py-4">Cargando histórico...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="small text-muted">Si no hay registros, verifica que la sincronización diaria de HikCentral se haya completado correctamente.</div>
+  <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+    <div>
+      <label for="dsFiltroIndicador" class="form-label mb-1"><strong>VER LISTADO DE:</strong></label>
+      <select id="dsFiltroIndicador" class="form-select" style="min-width:300px;max-width:480px" onchange="filtrarResumenDiarioSalidasHik()">
+        <option value="">Selecciona un indicador</option>
+      </select>
     </div>
+    <div id="dsConteoFiltro" class="small text-muted pb-2"></div>
   </div>
-  <div class="card shadow-sm border-0 mb-3">
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <div><h5 class="mb-1">Nivel de acceso por estudiante</h5><p class="text-muted small mb-0">Asignaciones actuales consultadas desde la API de HikCentral.</p></div>
-        <button id="dsBtnSincronizarNiveles" type="button" class="btn btn-outline-primary" onclick="sincronizarNivelesEstudiantesHik()"><i class="bi bi-arrow-repeat me-1"></i> Sincronizar desde HikCentral</button>
-      </div>
-      <div id="dsEstadoNiveles" class="small text-muted mb-2">Pulsa sincronizar para actualizar las asignaciones actuales.</div>
-      <div class="table-responsive">
-        <table class="table table-sm table-striped align-middle">
-          <thead class="table-light"><tr><th>APELLIDOS</th><th>NOMBRES</th><th>CÓDIGO</th><th>SECCIÓN</th><th>CURSO</th><th>PARALELO</th><th>ENTRADA</th><th>SALIDA</th><th>NIVEL DE ACCESO</th><th>HORARIO PERMITIDO</th><th>PTO ACCESO PERMITIDO</th></tr></thead>
-          <tbody id="dsTablaNiveles"><tr><td colspan="11" class="text-center text-muted py-3">Todavía no se han cargado asignaciones.</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered table-hover align-middle">
+      <thead class="table-light">
+        <tr><th>APELLIDOS</th><th>NOMBRES</th><th>CÓDIGO</th><th>SECCIÓN</th><th>CURSO</th><th>PARALELO</th><th>ENTRADA</th><th>SALIDA</th><th>NIVEL DE ACCESO</th><th>HORARIO PERMITIDO</th><th>PTO ACCESO PERMITIDO</th></tr>
+      </thead>
+      <tbody id="dsTablaResumenDiario"><tr><td colspan="11" class="text-center text-muted py-3">Selecciona una fecha y consulta.</td></tr></tbody>
+    </table>
   </div>
-  <div class="card shadow-sm border-0 mb-3">
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <div><h5 class="mb-1">Control diario de salidas</h5><p class="text-muted small mb-0">Compara el horario asignado con los eventos registrados en las puertas de salida.</p></div>
-        <div class="d-flex align-items-end gap-2"><div><label for="dsFechaResumen" class="form-label mb-1">Fecha del control</label><input id="dsFechaResumen" type="date" class="form-control"></div><button type="button" class="btn btn-outline-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button></div>
-      </div>
-      <div class="table-responsive mb-3">
-        <table class="table table-sm table-hover align-middle">
-          <thead class="table-light"><tr><th>INDICADOR</th><th>ESTUDIANTES</th><th>TOTAL</th><th>%</th><th>FILTRAR</th></tr></thead>
-          <tbody id="dsResumenIndicadores"><tr><td colspan="5" class="text-center text-muted py-3">Calculando indicadores...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <label for="dsFiltroIndicador" class="form-label mb-0">Filtrar estudiantes:</label>
-        <select id="dsFiltroIndicador" class="form-select form-select-sm" style="max-width:360px" onchange="filtrarResumenDiarioSalidasHik()">
-          <option value="">Todos los estudiantes</option>
-        </select>
-      </div>
-      <div id="dsResumenEstado" class="small text-muted mb-2">Consultando histórico diario...</div>
-      <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
-          <thead class="table-light"><tr><th>APELLIDOS</th><th>NOMBRES</th><th>CÓDIGO</th><th>SECCIÓN</th><th>CURSO</th><th>PARALELO</th><th>ENTRADA</th><th>SALIDA</th><th>NIVEL DE ACCESO</th><th>HORARIO PERMITIDO</th><th>PTO ACCESO PERMITIDO</th><th>RESULTADO</th></tr></thead>
-          <tbody id="dsTablaResumenDiario"><tr><td colspan="8" class="text-center text-muted py-3">Cargando...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <div class="card shadow-sm border-0">
-    <div class="card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div><h5 id="dsTituloListado" class="mb-1">Eventos de acceso</h5><p class="text-muted small mb-0">Eventos autorizados de HikCentral relacionados con estudiantes activos de Supabase.</p></div>
-        <input id="dsBuscarEvento" class="form-control" style="max-width:300px" placeholder="Buscar estudiante, código o puerta..." oninput="filtrarTablaEventosHik()">
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead><tr><th>Estudiante</th><th>Código</th><th>Fecha y hora</th><th>Punto de acceso</th><th>Tipo de evento</th><th>Resultado</th></tr></thead>
-          <tbody id="dsTablaEventos"><tr><td colspan="6" class="text-center text-muted py-4">Cargando...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <p class="text-muted small mt-3">Los eventos se consultan desde HikCentral, se filtran con los estudiantes activos de Supabase y se guardan en el histórico diario sin duplicarlos. Los horarios son reglas de configuración y no sustituyen la hora real del evento.</p>
 </div>
