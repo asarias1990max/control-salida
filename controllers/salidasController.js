@@ -165,7 +165,7 @@ export async function obtenerActividadReciente(req, res) {
 ========================= */
 export async function obtenerSalidasPorFecha(req, res) {
   try {
-    const { fecha_inicio, fecha_fin } = req.query;
+    const { fecha_inicio, fecha_fin, hora_inicio, hora_fin } = req.query;
 
     if (!fecha_inicio || !fecha_fin) {
       return res.status(400).json({
@@ -174,7 +174,7 @@ export async function obtenerSalidasPorFecha(req, res) {
       });
     }
 
-    const salidas = await getSalidasPorFecha(fecha_inicio, fecha_fin);
+    const salidas = await getSalidasPorFecha(fecha_inicio, fecha_fin, hora_inicio, hora_fin);
 
     return res.json({
       ok: true,
