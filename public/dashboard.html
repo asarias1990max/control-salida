@@ -503,12 +503,12 @@
         : [];
       cuerpo.replaceChildren();
       if (!seleccionado) {
-        cuerpo.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Selecciona un indicador en «VER LISTADO DE» para ver los estudiantes.</td></tr>';
+        cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Selecciona un indicador en «VER LISTADO DE» para ver los estudiantes.</td></tr>';
         if (conteo) conteo.textContent = "";
         return;
       }
       if (!rows.length) {
-        cuerpo.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No hay estudiantes para este indicador.</td></tr>';
+        cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No hay estudiantes para este indicador.</td></tr>';
         if (conteo) conteo.textContent = "0 estudiantes";
         return;
       }
@@ -517,10 +517,7 @@
         const valores = [
           row.apellidos || "",
           row.nombres || "",
-          row.codigo || row.codigo_hik || "—",
-          row.seccion || "—",
           row.curso || "—",
-          row.paralelo || "—",
           textoEventoAcceso(row.puerta_entrada, row.hora_entrada, row.resultado_entrada),
           textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida),
           (row.niveles || []).join(", ") || "—",
