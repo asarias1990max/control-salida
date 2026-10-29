@@ -690,10 +690,18 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
   }
 
   const normalizarIdentificador = (valor) => String(valor ?? "").trim().toLowerCase();
+  const normalizarNombre = valor => String(valor ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\\s+/g, " ");
   const estudiantePorCodigoHik = new Map();
+  const estudiantesPorNombreEvento = new Map();
   estudiantes.forEach(estudiante => {
     const codigoHik = normalizarIdentificador(estudiante.codigo_hik);
     if (codigoHik) estudiantePorCodigoHik.set(codigoHik, estudiante);
+    const nombre = normalizarNombre([estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" "));
+    if (nombre) {
+      const grupo = estudiantesPorNombreEvento.get(nombre) || [];
+      grupo.push(estudiante);
+      estudiantesPorNombreEvento.set(nombre, grupo);
+    }
   });
 
   const personIdInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
@@ -734,8 +742,21 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
       const personId = String(evento.personId || evento.personInfo?.personId || "").trim();
       if (personId) {
         infoPersona = cachePersonaPorId.get(personId) || infoPersona;
-        const codigoResuelto = normalizarIdentificador(infoPersona?.personCode || infoPersona?.employeeNo || "");
+        const codigoResuelto = normalizarIdentificador(infoPersona?.personCode || infoPersona?.employeeNo || infoPersona?.employeeNoString || "");
         if (codigoResuelto) estudiante = estudiantePorCodigoHik.get(codigoResuelto);
+      }
+    }
+    // Respaldo para instalaciones donde el código del evento no coincide con codigo_hik.
+    // Solo asociar por nombre completo normalizado si hay exactamente un estudiante.
+    if (!estudiante) {
+      const nombreHik = normalizarNombre(
+        evento.personName || evento.name || evento.employeeName ||
+        infoPersona?.personName || infoPersona?.name ||
+        [infoPersona?.personFamilyName, infoPersona?.personGivenName].filter(Boolean).join(" ")
+      );
+      if (nombreHik) {
+        const coincidencias = estudiantesPorNombreEvento.get(nombreHik) || [];
+        if (coincidencias.length === 1) estudiante = coincidencias[0];
       }
     }
     if (!estudiante) continue;
