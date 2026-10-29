@@ -34,56 +34,9 @@ function login() {
   });
 }
 
-// Google Sign-In
+// Google Sign-In: inicializar el botón oficial de Google cuando la librería y la configuración estén listas.
 let googleClientId = '';
-
-async function waitForGoogleAccounts(timeout = 5000) {
-  const step = 100;
-  let elapsed = 0;
-
-  return new Promise((resolve, reject) => {
-    const timer = setInterval(() => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        clearInterval(timer);
-        resolve();
-        return;
-      }
-
-      elapsed += step;
-      if (elapsed >= timeout) {
-        clearInterval(timer);
-        reject(new Error('Google Identity Services no se cargó a tiempo'));
-      }
-    }, step);
-  });
-}
-
-async function initGoogleSignIn() {
-  try {
-    await waitForGoogleAccounts();
-
-    const response = await fetch('/api/google/config');
-    const config = await response.json();
-
-    if (config.ok && config.clientId) {
-      googleClientId = config.clientId;
-
-      google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: handleGoogleCredentialResponse
-      });
-
-      google.accounts.id.disableAutoSelect();
-      setGoogleStatus('Google Sign-In listo.');
-    } else {
-      console.warn('Google Client ID no configurado');
-      setGoogleStatus('Google Sign-In no configurado. Revisa GOOGLE_CLIENT_ID en .env.');
-    }
-  } catch (error) {
-    console.error('Error inicializando Google Sign-In:', error);
-    setGoogleStatus('Error cargando Google Sign-In. Revisa la consola del navegador.');
-  }
-}
+let googleInitialized = false;
 
 function setGoogleStatus(text, type = 'muted') {
   const status = document.getElementById('googleStatus');
@@ -92,67 +45,89 @@ function setGoogleStatus(text, type = 'muted') {
   status.className = `text-${type} small mb-4`;
 }
 
-function handleGoogleCredentialResponse(response) {
-  if (!response || !response.credential) {
-    console.error('Respuesta de Google inválida', response);
-    return;
-  }
-
-  const responsePayload = decodeJwtResponse(response.credential);
-
-  handleGoogleAuthData({
-    google_id: responsePayload.sub,
-    email: responsePayload.email,
-    nombre: responsePayload.name,
-    avatar: responsePayload.picture
-  });
-}
-
 function decodeJwtResponse(token) {
   const base64Url = token.split('.')[1];
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+  const base64Padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+  const jsonPayload = decodeURIComponent(atob(base64Padded).split('').map(function(c) {
     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
   }).join(''));
-
   return JSON.parse(jsonPayload);
 }
 
-function loginWithGoogle() {
-  const btn = document.getElementById("googleBtn");
-  const originalText = btn ? btn.innerHTML : 'Iniciar con Google';
-
-  if (!googleClientId || !window.google || !window.google.accounts || !window.google.accounts.id) {
-    alert('Google Sign-In no está listo. Recarga la página e inténtalo de nuevo.');
-    if (btn) btn.innerHTML = originalText;
-    if (btn) btn.disabled = false;
+function handleGoogleCredentialResponse(response) {
+  if (!response || !response.credential) {
+    setGoogleStatus('Google no devolvió una credencial. Intenta nuevamente.', 'danger');
     return;
   }
 
-  if (btn) {
-    btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Conectando...';
-    btn.disabled = true;
-  }
-
   try {
-    google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        if (btn) {
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-        }
-      }
+    const payload = decodeJwtResponse(response.credential);
+    handleGoogleAuthData({
+      google_id: payload.sub,
+      email: payload.email,
+      nombre: payload.name,
+      avatar: payload.picture
     });
   } catch (error) {
-    console.error('Error iniciando Google Sign-In:', error);
-    setGoogleStatus('Error iniciando Google Sign-In. Revisa el client_id y el origen.');
-    alert('Error conectando con Google. Revisa la consola del navegador y la configuración de Google Cloud.');
-    if (btn) {
-      btn.innerHTML = originalText;
-      btn.disabled = false;
-    }
+    console.error('No se pudo procesar la respuesta de Google:', error);
+    setGoogleStatus('No se pudo procesar la respuesta de Google.', 'danger');
   }
 }
+
+async function initGoogleSignIn() {
+  const container = document.getElementById('googleSignInButton');
+  if (!container) return;
+
+  try {
+    // La librería GIS puede cargarse de forma asíncrona; esperar sin bloquear el formulario normal.
+    const started = Date.now();
+    while (!(window.google && window.google.accounts && window.google.accounts.id)) {
+      if (Date.now() - started > 10000) {
+        throw new Error('Google Identity Services no se cargó a tiempo');
+      }
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    const response = await fetch('/api/google/config', { cache: 'no-store' });
+    if (!response.ok) throw new Error('No se pudo obtener la configuración de Google');
+    const config = await response.json();
+
+    if (!config.ok || !config.clientId) {
+      setGoogleStatus('Acceso con Google no configurado. Revisa GOOGLE_CLIENT_ID.', 'warning');
+      return;
+    }
+
+    googleClientId = config.clientId;
+    google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: handleGoogleCredentialResponse,
+      auto_select: false,
+      cancel_on_tap_outside: true
+    });
+
+    google.accounts.id.renderButton(container, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: Math.min(Math.floor(container.getBoundingClientRect().width || 340), 360)
+    });
+
+    googleInitialized = true;
+    setGoogleStatus(''); 
+  } catch (error) {
+    console.error('Error inicializando Google Sign-In:', error);
+    setGoogleStatus('No se pudo cargar Google. Puedes ingresar con usuario y contraseña.', 'warning');
+  }
+}
+
+window.loginWithGoogle = function() {
+  // Compatibilidad con llamadas antiguas: el usuario debe pulsar el botón oficial renderizado por Google.
+  if (!googleInitialized) setGoogleStatus('Google todavía se está preparando. Intenta nuevamente en unos segundos.', 'warning');
+};
 
 async function handleGoogleAuthData(googleUser) {
   try {
@@ -177,11 +152,7 @@ async function handleGoogleAuthData(googleUser) {
     console.error("Error en autenticación con Google:", error);
     alert("Error conectando con Google. Inténtalo de nuevo.");
   } finally {
-    const btn = document.getElementById("googleBtn");
-    if (btn) {
-      btn.innerHTML = '<i class="bi bi-google me-2"></i> Iniciar con Google';
-      btn.disabled = false;
-    }
+    // El botón oficial de Google gestiona su propio estado; no requiere restauración manual.
   }
 }
 
