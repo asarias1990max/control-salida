@@ -24,6 +24,9 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
     }).format(new Date());
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
+    // Sincroniza primero los registros reales de HikCentral para la fecha seleccionada.
+    // La función consulta POST /artemis/api/acs/v1/door/events y persiste los eventos sin duplicarlos.
+    const sincronizacionEventos = await obtenerDashboardEventosHik(fecha, fecha);
     const inicio = new Date(fecha + "T05:00:00.000Z");
     const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
     const [estudiantesResult, eventosResult, asignacionesResult, configuracionResult] = await Promise.all([
@@ -150,6 +153,8 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       fuentes: {
         estudiantes: total,
         eventosHikCentral: eventosSincronizados.length,
+        eventosConsultadosEnHikCentral: Number(sincronizacionEventos?.totalEventos || 0),
+        eventosGuardadosEnSupabase: Number(sincronizacionEventos?.eventosGuardados || 0),
         asignacionesAcceso: (asignacionesResult.data || []).length,
         reglasSalida: configs.length,
         eventosDisponibles: hayEventosSincronizados
