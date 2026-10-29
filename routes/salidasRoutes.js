@@ -122,7 +122,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         salida_concedida: salidasConcedidas.length > 0,
         entrada_y_salida: entradasConcedidas.length > 0 && salidasConcedidas.length > 0,
         // No marcar a todos como ausentes si la sincronización aún no ha cargado eventos.
-        ausente: hayEventosSincronizados && !(sincronizacionEventos?.advertencias?.length) && entradas.length === 0 && salidas.length === 0,
+        ausente: hayEventosSincronizados && !sincronizandoEventos && !(sincronizacionEventos?.advertencias?.length) && entradas.length === 0 && salidas.length === 0,
         error_entrada: entradasError.length > 0,
         error_salida: salidasError.length > 0,
         fuera_horario: salidasFueraHorario.length > 0,
