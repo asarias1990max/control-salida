@@ -15,14 +15,21 @@ const router = express.Router();
 // Sincronizaciones de eventos en segundo plano, una por fecha, para que abrir/cambiar fecha no espere a HikCentral.
 const sincronizacionesEventosDiarios = new Map();
 const erroresSincronizacionEventosDiarios = new Map();
+const resultadosSincronizacionEventosDiarios = new Map();
 
 function iniciarSincronizacionEventosDiarios(fecha) {
   if (sincronizacionesEventosDiarios.has(fecha)) return;
-  erroresSincronizacionEventosDiarios.delete(fecha);
   const tarea = obtenerDashboardEventosHik(fecha, fecha)
+    .then(resultado => {
+      resultadosSincronizacionEventosDiarios.set(fecha, resultado);
+      erroresSincronizacionEventosDiarios.delete(fecha);
+      return resultado;
+    })
     .catch(error => {
       erroresSincronizacionEventosDiarios.set(fecha, error.message || "Falló la sincronización con HikCentral.");
+      resultadosSincronizacionEventosDiarios.delete(fecha);
       console.error("[Dashboard] Sincronización diaria fallida para " + fecha + ":", error.message);
+      return null;
     })
     .finally(() => sincronizacionesEventosDiarios.delete(fecha));
   sincronizacionesEventosDiarios.set(fecha, tarea);
@@ -45,7 +52,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     const soloLectura = String(req.query.soloLectura || "") === "1";
     if (!soloLectura) iniciarSincronizacionEventosDiarios(fecha);
     const sincronizandoEventos = sincronizacionesEventosDiarios.has(fecha);
-    const sincronizacionEventos = null;
+    const sincronizacionEventos = resultadosSincronizacionEventosDiarios.get(fecha) || null;
     const inicio = new Date(fecha + "T05:00:00.000Z");
     const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
     const [estudiantesResult, eventosResult, asignacionesResult, configuracionResult] = await Promise.all([
@@ -141,7 +148,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         salida_concedida: salidasConcedidas.length > 0,
         entrada_y_salida: entradasConcedidas.length > 0 && salidasConcedidas.length > 0,
         // No marcar a todos como ausentes si la sincronización aún no ha cargado eventos.
-        ausente: hayEventosSincronizados && !sincronizandoEventos && !(sincronizacionEventos?.advertencias?.length) && entradas.length === 0 && salidas.length === 0,
+        ausente: Boolean(sincronizacionEventos) && hayEventosSincronizados && !sincronizandoEventos && !(sincronizacionEventos?.advertencias?.length) && entradas.length === 0 && salidas.length === 0,
         error_entrada: entradasError.length > 0,
         error_salida: salidasError.length > 0,
         fuera_horario: salidasFueraHorario.length > 0,
