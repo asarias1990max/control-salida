@@ -164,6 +164,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         eventosDisponibles: hayEventosSincronizados
       },
       advertencias: [
+        ...(Array.isArray(sincronizacionEventos?.advertencias) ? sincronizacionEventos.advertencias : []),
         ...(!hayEventosSincronizados ? ["No hay eventos de HikCentral sincronizados para esta fecha. Los indicadores de entrada, salida y ausencia no deben interpretarse como resultados reales."] : []),
         ...(total === 0 ? ["No hay estudiantes activos en Supabase."] : [])
       ]
