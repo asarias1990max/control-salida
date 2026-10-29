@@ -537,7 +537,7 @@
       if (conteo) conteo.textContent = (itemIndicador?.indicador || "Listado") + ": " + rows.length + " estudiantes";
     }
 
-    async function cargarResumenDiarioSalidasHik() {
+    async function cargarResumenDiarioSalidasHik(soloLectura = false) {
       const cuerpo = document.getElementById("dsTablaResumenDiario");
       const estado = document.getElementById("dsResumenEstado");
       const indicadores = document.getElementById("dsResumenIndicadores");
@@ -545,12 +545,16 @@
       const fecha = document.getElementById("dsFechaResumen")?.value || "";
       if (!cuerpo || !estado || !indicadores) return;
       if (!fecha) { estado.textContent = "Selecciona una fecha para generar el control."; return; }
-      estado.className = "small text-muted mb-2";
-      estado.textContent = "Consultando eventos y calculando indicadores...";
-      indicadores.innerHTML = '<tr><td colspan="4" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
-      cuerpo.innerHTML = '<tr><td colspan="11" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
+      // Durante el sondeo silencioso conservamos los datos visibles y evitamos el parpadeo de "Calculando...".
+      if (!soloLectura) {
+        estado.className = "small text-muted mb-2";
+        estado.textContent = "Consultando eventos y calculando indicadores...";
+        indicadores.innerHTML = '<tr><td colspan="4" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
+        cuerpo.innerHTML = '<tr><td colspan="11" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
+      }
       try {
-        const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha), { headers: { Accept: "application/json" } });
+        const parametroLectura = soloLectura ? "&soloLectura=1" : "";
+        const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha) + parametroLectura, { headers: { Accept: "application/json" } });
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo generar el control diario.");
         resumenDiarioSalidasData = Array.isArray(result.data) ? result.data : [];
@@ -580,7 +584,7 @@
         if (result.sincronizando) {
           window.setTimeout(() => {
             const fechaActual = document.getElementById("dsFechaResumen")?.value || "";
-            if (fechaActual === fecha) cargarResumenDiarioSalidasHik();
+            if (fechaActual === fecha) cargarResumenDiarioSalidasHik(true);
           }, 3000);
         }
       } catch (error) {
