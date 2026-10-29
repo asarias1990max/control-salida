@@ -15,53 +15,37 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
+    :root { --login-blue: #2449a5; --login-ink: #17243b; --login-line: #e6ebf2; }
     body {
-      background: linear-gradient(135deg, #1f3c88, #4a69bd);
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh; margin: 0; padding: 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--login-ink);
+      background: radial-gradient(circle at 12% 12%, rgba(255,255,255,.16), transparent 28%),
+                  linear-gradient(135deg, #172b5e 0%, #2449a5 58%, #7f9de3 100%);
     }
-
     .login-card {
-      width: 100%;
-      max-width: 380px;
-      border-radius: 15px;
-      background: white;
-      padding: 30px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+      width: 100%; max-width: 410px; padding: 34px;
+      border: 1px solid rgba(255,255,255,.75); border-radius: 22px;
+      background: rgba(255,255,255,.98);
+      box-shadow: 0 24px 70px rgba(10,25,61,.28);
     }
-
-    .logo {
-      font-size: 40px;
-      color: #1f3c88;
+    .logo { font-size: 42px; color: var(--login-blue); }
+    .title { font-weight: 750; letter-spacing: -.025em; color: var(--login-ink); }
+    .login-card .form-control {
+      min-height: 46px; border: 1px solid #dce4ef; border-radius: 11px;
     }
-
-    .title {
-      font-weight: bold;
-      color: #1f3c88;
+    .login-card .form-control:focus {
+      border-color: #8da9e8; box-shadow: 0 0 0 .2rem rgba(36,73,165,.12);
     }
-
-    .form-control {
-      border-radius: 8px;
+    .login-card .btn-primary {
+      min-height: 45px; color: #fff; background: var(--login-blue);
+      border: 0; border-radius: 11px; font-weight: 650;
+      box-shadow: 0 6px 14px rgba(36,73,165,.18); transition: .18s ease;
     }
-
-    .btn-primary {
-      background-color: #1f3c88;
-      border: none;
-      border-radius: 8px;
-      transition: 0.3s;
-    }
-
-    .btn-primary:hover {
-      background-color: #162d66;
-    }
-
-    .footer {
-      font-size: 12px;
-      color: gray;
-    }
+    .login-card .btn-primary:hover { background: #1d3679; transform: translateY(-1px); }
+    .footer { font-size: 12px; color: #718096; }
+    @media (max-width: 480px) { .login-card { padding: 26px 22px; border-radius: 18px; } }
   </style>
 </head>
 
