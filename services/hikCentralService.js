@@ -216,7 +216,18 @@ export async function sincronizarNivelesYAsignacionesHik() {
     .not("codigo_hik", "is", null);
   if (estudiantesResult.error) throw new Error("No se pudieron cargar estudiantes: " + estudiantesResult.error.message);
   const estudiantes = estudiantesResult.data || [];
-  const estudiantePorCodigoHik = new Map(estudiantes.map(e => [String(e.codigo_hik || "").trim().toLowerCase(), e]).filter(([k]) => k));
+  const normalizarClave = valor => String(valor ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").trim().toLowerCase().replace(/\\s+/g, " ");
+  const estudiantePorCodigoHik = new Map(estudiantes.map(e => [normalizarClave(e.codigo_hik), e]).filter(([k]) => k));
+  // Respaldo por nombre completo solo cuando la coincidencia es única; evita asignar
+  // niveles al estudiante equivocado si existen homónimos.
+  const estudiantesPorNombre = new Map();
+  for (const estudiante of estudiantes) {
+    const nombreCompleto = normalizarClave([estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" "));
+    if (!nombreCompleto) continue;
+    const coincidencias = estudiantesPorNombre.get(nombreCompleto) || [];
+    coincidencias.push(estudiante);
+    estudiantesPorNombre.set(nombreCompleto, coincidencias);
+  }
   let personasConsultadas = 0;
   let personasSinCoincidencia = 0;
   let erroresDetallePersona = 0;
@@ -258,7 +269,13 @@ export async function sincronizarNivelesYAsignacionesHik() {
       if (!page.length || page.length < pageSize || personas.length >= totalPersonas) break;
       pageNo++;
     }
-    const ids = [...new Set(personas.map(p => String(p.id ?? p.personId ?? p.personCode ?? "").trim()).filter(Boolean))];
+    const personasHik = personas.map(p => ({
+      consultaId: String(p.personId ?? p.id ?? p.personCode ?? p.employeeNo ?? "").trim(),
+      personCode: String(p.personCode ?? p.employeeNo ?? p.employeeNoString ?? "").trim(),
+      personName: String(p.personName ?? p.name ?? p.personInfo?.personName ?? "").trim()
+    })).filter(p => p.consultaId);
+    const ids = [...new Set(personasHik.map(p => p.consultaId))];
+    const personaPorId = new Map(personasHik.map(p => [p.consultaId, p]));
     for (let i = 0; i < ids.length; i += 10) {
       const lote = ids.slice(i, i + 10).filter(personId => !cacheDetallesPersona.has(personId));
       const detalles = await Promise.all(lote.map(async personId => {
@@ -277,15 +294,22 @@ export async function sincronizarNivelesYAsignacionesHik() {
       const info = cacheDetallesPersona.get(personId);
       if (!info) { personasSinCoincidencia++; continue; }
       personasConsultadas++;
-      const claves = [info.personCode, info.personId, personId].map(v => String(v ?? "").trim().toLowerCase()).filter(Boolean);
-      const estudiante = claves.map(k => estudiantePorCodigoHik.get(k)).find(Boolean);
+      const personaListado = personaPorId.get(personId) || {};
+      const claves = [info.personCode, info.employeeNo, info.employeeNoString, personaListado.personCode, personId, info.personId]
+        .map(normalizarClave).filter(Boolean);
+      let estudiante = claves.map(k => estudiantePorCodigoHik.get(k)).find(Boolean);
+      const nombrePersona = normalizarClave(info.personName || info.name || personaListado.personName);
+      if (!estudiante && nombrePersona) {
+        const porNombre = estudiantesPorNombre.get(nombrePersona) || [];
+        if (porNombre.length === 1) estudiante = porNombre[0];
+      }
       if (!estudiante) { personasSinCoincidencia++; continue; }
       asignaciones.push({
         estudiante_id: estudiante.id,
         privilege_group_id: String(nivel.id),
         person_id_hik: String(info.personId || personId),
         asignado_en: inicioSincronizacion,
-        datos_originales: { personId, personCode: info.personCode || null, personName: info.personName || null }
+        datos_originales: { personId, personCode: info.personCode || personaListado.personCode || null, personName: info.personName || personaListado.personName || null, coincidencia: estudiantePorCodigoHik.has(normalizarClave(info.personCode)) ? "codigo_hik" : "nombre_unico_o_id" }
       });
     }
   }
