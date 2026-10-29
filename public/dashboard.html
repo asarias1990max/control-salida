@@ -430,35 +430,41 @@
         const rows = Array.isArray(result.data) ? result.data : [];
         cuerpo.replaceChildren();
         if (!rows.length) {
-          cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No hay asignaciones sincronizadas. Pulsa «Sincronizar desde HikCentral».</td></tr>';
+          cuerpo.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No hay asignaciones sincronizadas. Pulsa «Sincronizar desde HikCentral».</td></tr>';
           estado.textContent = "No hay asignaciones guardadas en Supabase.";
           return;
         }
         rows.forEach(row => {
           const tr = document.createElement("tr");
-          const curso = [row.curso, row.paralelo ? "Paralelo " + row.paralelo : ""].filter(Boolean).join(" · ");
-          const horario = row.hora_inicio_configurada && row.hora_fin_configurada
-            ? horaTextoHik(row.hora_inicio_configurada) + "–" + horaTextoHik(row.hora_fin_configurada)
-            : "Pendiente de verificar";
+          const puertas = Array.isArray(row.puertas_configuradas)
+            ? row.puertas_configuradas.map(p => typeof p === "string" ? p : (p.nombre || p.name || p.doorName || p.doorIndexCode || "")).filter(Boolean).join(", ")
+            : (row.puertas_configuradas || "");
+          const entrada = row.hora_inicio_configurada ? horaTextoHik(row.hora_inicio_configurada) : "—";
+          const salida = row.hora_salida_nivel
+            ? horaTextoHik(row.hora_salida_nivel)
+            : (row.hora_fin_configurada ? horaTextoHik(row.hora_fin_configurada) : "—");
           const valores = [
-            row.estudiante || "Sin nombre",
+            row.apellidos || "",
+            row.nombres || "",
             row.codigo || row.codigo_hik || "—",
-            curso || row.seccion || "—",
+            row.seccion || "—",
+            row.curso || "—",
+            row.paralelo || "—",
+            entrada,
+            salida,
             row.nivel_acceso || "Sin nivel",
-            row.horario_hikcentral_nombre || "Sin plantilla identificada",
-            row.hora_salida_nivel ? horaTextoHik(row.hora_salida_nivel) : "No indicada por la API",
-            horario,
-            row.fuente_horario || "Por verificar"
+            row.horario_hikcentral_nombre || "Sin horario identificado",
+            puertas || "Sin punto configurado"
           ];
           valores.forEach((valor, index) => {
             const td = document.createElement("td");
             td.textContent = String(valor);
-            if (index === 3) td.style.minWidth = "230px";
+            if (index === 8) td.style.minWidth = "220px";
             tr.append(td);
           });
           cuerpo.append(tr);
         });
-        estado.textContent = rows.length + " asignaciones estudiante/nivel guardadas. La plantilla de HikCentral se muestra por separado del horario escolar configurado." ;
+        estado.textContent = rows.length + " asignaciones estudiante/nivel guardadas. Horarios y puntos permitidos muestran la información disponible en la configuración y HikCentral.";
       } catch (error) {
         estado.textContent = error.message || "Error consultando asignaciones.";
         estado.className = "small text-danger mb-2";
