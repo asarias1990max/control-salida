@@ -156,6 +156,5 @@ async function handleGoogleAuthData(googleUser) {
   }
 }
 
-window.loginWithGoogle = loginWithGoogle;
 
 document.addEventListener('DOMContentLoaded', initGoogleSignIn);
