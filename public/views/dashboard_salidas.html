@@ -83,13 +83,22 @@
         <div><h5 class="mb-1">Control diario de salidas</h5><p class="text-muted small mb-0">Compara el horario asignado con los eventos registrados en las puertas de salida.</p></div>
         <div class="d-flex align-items-end gap-2"><div><label for="dsFechaResumen" class="form-label mb-1">Fecha del control</label><input id="dsFechaResumen" type="date" class="form-control"></div><button type="button" class="btn btn-outline-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button></div>
       </div>
-      <div id="dsResumenIndicadores" class="row g-2 mb-3">
-        <div class="col-12 text-muted small">Calculando control diario...</div>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-hover align-middle">
+          <thead class="table-light"><tr><th>INDICADOR</th><th>ESTUDIANTES</th><th>TOTAL</th><th>%</th><th>FILTRAR</th></tr></thead>
+          <tbody id="dsResumenIndicadores"><tr><td colspan="5" class="text-center text-muted py-3">Calculando indicadores...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <label for="dsFiltroIndicador" class="form-label mb-0">Filtrar estudiantes:</label>
+        <select id="dsFiltroIndicador" class="form-select form-select-sm" style="max-width:360px" onchange="filtrarResumenDiarioSalidasHik()">
+          <option value="">Todos los estudiantes</option>
+        </select>
       </div>
       <div id="dsResumenEstado" class="small text-muted mb-2">Consultando histórico diario...</div>
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle">
-          <thead><tr><th>Estudiante</th><th>Código</th><th>Curso</th><th>Nivel de acceso</th><th>Hora esperada</th><th>Hora real</th><th>Puerta</th><th>Novedad</th></tr></thead>
+          <thead class="table-light"><tr><th>APELLIDOS</th><th>NOMBRES</th><th>CÓDIGO</th><th>SECCIÓN</th><th>CURSO</th><th>PARALELO</th><th>ENTRADA</th><th>SALIDA</th><th>NIVEL DE ACCESO</th><th>HORARIO PERMITIDO</th><th>PTO ACCESO PERMITIDO</th><th>RESULTADO</th></tr></thead>
           <tbody id="dsTablaResumenDiario"><tr><td colspan="8" class="text-center text-muted py-3">Cargando...</td></tr></tbody>
         </table>
       </div>
