@@ -123,25 +123,34 @@
     letter-spacing: -.015em;
   }
   .ds-dashboard .ds-section-title i { color: #4164b6; font-size: 1.05rem; }
-  .ds-dashboard .ds-section-note { color: var(--ds-muted); font-size: .8rem; margin-top: .25rem; }
+  .ds-dashboard .ds-section-note { color: var(--ds-muted); font-size: .76rem; margin-top: .15rem; }
   .ds-dashboard .table-responsive { margin: 0; }
   .ds-dashboard .table { margin: 0; border-color: #edf0f5; }
   .ds-dashboard .table thead th {
-    padding: .82rem .9rem;
+    padding: .48rem .7rem;
     color: #586780;
     background: #f7f9fc;
     border-bottom: 1px solid #e5eaf2;
-    font-size: .72rem;
+    font-size: .68rem;
     font-weight: 800;
-    letter-spacing: .045em;
+    letter-spacing: .035em;
     text-transform: uppercase;
     white-space: nowrap;
   }
   .ds-dashboard .table tbody td {
-    padding: .78rem .9rem;
+    padding: .42rem .7rem;
     color: #344258;
-    font-size: .84rem;
+    font-size: .78rem;
+    line-height: 1.2;
     vertical-align: middle;
+  }
+  .ds-dashboard .ds-section-card.mb-4 .ds-card-heading {
+    padding: .65rem .9rem;
+  }
+  .ds-dashboard #dsResumenIndicadores td:nth-child(2),
+  .ds-dashboard #dsResumenIndicadores td:nth-child(3),
+  .ds-dashboard #dsResumenIndicadores td:nth-child(4) {
+    font-variant-numeric: tabular-nums;
   }
   .ds-dashboard #dsResumenIndicadores tr { cursor: pointer; transition: background .15s ease; }
   .ds-dashboard #dsResumenIndicadores tr:hover td { background: #f1f5ff; }
