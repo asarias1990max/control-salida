@@ -88,8 +88,8 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
           return minutos >= ini && minutos <= finM;
         });
       });
-      const primeraEntrada = entradasConcedidas[0] || null;
-      const primeraSalida = salidasConcedidas[0] || null;
+      const primeraEntrada = entradasConcedidas[0] || entradas[0] || null;
+      const primeraSalida = salidasConcedidas[0] || salidas[0] || null;
       const flags = {
         entrada_concedida: entradasConcedidas.length > 0,
         salida_concedida: salidasConcedidas.length > 0,
@@ -107,7 +107,12 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         apellidos: estudiante.apellidos || "", nombres: estudiante.nombres || "",
         estudiante: [estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" ").trim(),
         seccion: estudiante.seccion || "", curso: estudiante.curso || "", paralelo: estudiante.paralelo || "",
-        niveles: niveles.map(n => n.nombre), hora_entrada: primeraEntrada ? horaLocal(primeraEntrada.fecha_evento) : null,
+        niveles: niveles.map(n => n.nombre),
+        configuracion: {
+          horario: niveles.map(n => n.inicio && n.fin ? String(n.inicio).slice(0,5) + "–" + String(n.fin).slice(0,5) : "").filter(Boolean).join(", "),
+          puertas: [...new Set(niveles.flatMap(n => n.puertas || []).map(p => typeof p === "string" ? p : (p.nombre || p.name || p.doorName || p.doorIndexCode || "")).filter(Boolean))].join(", ")
+        },
+        hora_entrada: primeraEntrada ? horaLocal(primeraEntrada.fecha_evento) : null,
         puerta_entrada: primeraEntrada?.puerta_nombre || primeraEntrada?.puerta_codigo || "",
         resultado_entrada: primeraEntrada ? primeraEntrada.resultado || "" : "",
         hora_salida: primeraSalida ? horaLocal(primeraSalida.fecha_evento) : null,
