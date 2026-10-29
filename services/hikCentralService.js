@@ -615,8 +615,11 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
         if (pageNo === 1) console.log("[HikCentral] door/events:", JSON.stringify({ eventType: tipo.codigo, nombre: tipo.nombre, dataKeys: Object.keys(data), listLength: list.length, total: data.total }));
         total = Number(data.total ?? list.length);
         recogidosTipo.push(...list.map(evento => ({ ...evento, eventType: String(evento.eventType ?? evento.eventTypeCode ?? tipo.codigo), eventName: evento.eventName || evento.eventTypeName || tipo.nombre })));
-        if (!list.length || list.length < pageSize || recogidosTipo.length >= total) break;
+        // No asumir que una página incompleta significa que terminó la consulta:
+        // algunas versiones/proxies limitan el tamaño efectivo de página.
+        if (!list.length || recogidosTipo.length >= total) break;
         pageNo++;
+        if (pageNo > 10000) throw new Error("Se alcanzó el límite de seguridad de paginación para " + tipo.codigo + ".");
       }
       return { tipo, eventos: recogidosTipo, error: null };
     } catch (error) {
@@ -632,6 +635,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
   if (!eventos.length) throw new Error("HikCentral no devolvió eventos para ninguno de los tipos consultados. " + advertenciasConsulta.join(" | "));
   // Deduplicar por eventId si el mismo registro aparece en más de una consulta.
   const eventosUnicos = [...new Map(eventos.map((evento, i) => [String(evento.eventId || evento.eventIndexCode || [evento.eventTime || evento.SwipeTime, evento.personId, evento.doorIndexCode, evento.eventType, i].join("|")), evento])).values()];
+  const totalEventosRecibidosHik = eventosUnicos.length;
   // La tabla estudiantes de Supabase es la fuente autorizada del dashboard.
   // Solo se muestran eventos cuyo identificador coincide con codigo_hik de un estudiante activo.
   const estudiantes = [];
@@ -714,10 +718,19 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
   }
 
   console.log("[Dashboard] Filtro Supabase aplicado:", JSON.stringify({
+    fechaInicio: inicio,
+    fechaFin: fin,
     estudiantesActivosConCodigoHik: estudiantePorCodigoHik.size,
-    eventosHikCentral: eventos.length,
-    eventosDeEstudiantes: eventosSoloEstudiantes.length
+    eventosRecibidosDeHikCentral: totalEventosRecibidosHik,
+    eventosAsociadosAEstudiantes: eventosSoloEstudiantes.length
   }));
+
+  // Evita que una consulta exitosa de HikCentral con identificadores no reconocidos
+  // parezca válida y haga que el dashboard reutilice eventos históricos de Supabase.
+  if (totalEventosRecibidosHik > 0 && eventosSoloEstudiantes.length === 0) {
+    throw new Error("HikCentral devolvió " + totalEventosRecibidosHik + " eventos para " + inicio + "–" + fin +
+      ", pero ninguno se pudo asociar con estudiantes activos. Se bloquea la actualización para no mostrar datos antiguos como actuales.");
+  }
 
   // A partir de aquí se trabaja solo con eventos que coinciden con estudiantes de Supabase.
   eventos.length = 0;
@@ -805,5 +818,13 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     if (error) throw new Error("No se pudieron guardar los eventos de HikCentral en Supabase: " + error.message);
   }
   console.log("[HikCentral] Persistencia diaria:", JSON.stringify({ eventosFiltrados: eventosConNombre.length, eventosGuardados: filasEventos.length }));
-  return { fechaInicio: inicio, fechaFin: fin, totalEventos: eventosConNombre.length, eventosGuardados: filasEventos.length, advertencias: advertenciasConsulta, eventos: eventosConNombre };
+  return {
+    fechaInicio: inicio,
+    fechaFin: fin,
+    totalEventos: totalEventosRecibidosHik,
+    eventosAsociadosAEstudiantes: eventosConNombre.length,
+    eventosGuardados: filasEventos.length,
+    advertencias: advertenciasConsulta,
+    eventos: eventosConNombre
+  };
 }
