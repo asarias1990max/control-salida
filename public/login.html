@@ -44,6 +44,8 @@
       box-shadow: 0 6px 14px rgba(36,73,165,.18); transition: .18s ease;
     }
     .login-card .btn-primary:hover { background: #1d3679; transform: translateY(-1px); }
+    #googleSignInButton { display:flex; justify-content:center; min-height:44px; }
+    #googleSignInButton > div { max-width:100%; }
     .footer { font-size: 12px; color: #718096; }
     @media (max-width: 480px) { .login-card { padding: 26px 22px; border-radius: 18px; } }
   </style>
@@ -78,10 +80,8 @@
     </div>
 
     <!-- BOTÓN GOOGLE -->
-    <button onclick="loginWithGoogle()" class="btn btn-outline-dark w-100 mb-2" id="googleBtn">
-      <i class="bi bi-google me-2"></i> Iniciar con Google
-    </button>
-    <div id="googleStatus" class="text-muted small mb-4">Cargando configuración de Google...</div>
+    <div id="googleSignInButton" class="w-100 mb-2"></div>
+    <div id="googleStatus" class="text-muted small mb-4">Preparando acceso con Google...</div>
 
     <div class="mt-4 footer">
       © 2026 Sistema Institucional
