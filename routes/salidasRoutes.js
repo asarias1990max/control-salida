@@ -48,7 +48,12 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     const fecha = String(req.query.fecha || "").trim() || new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
     }).format(new Date());
+    const horaInicio = String(req.query.hora_inicio || "00:00").trim();
+    const horaFin = String(req.query.hora_fin || "23:59").trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(horaInicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaFin) || horaInicio > horaFin) {
+      return res.status(400).json({ ok: false, message: "Selecciona un rango horario válido." });
+    }
     // La carga inicial espera la consulta real de HikCentral. No se responde con registros
     // antiguos de Supabase como si fueran el resultado actualizado de la fecha seleccionada.
     const soloLectura = String(req.query.soloLectura || "") === "1";
@@ -117,15 +122,19 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       lista.push({ nombre: nivel.nombre || "Nivel sin nombre", horaExacta: nivel.hora_salida || null, plantilla: nivel.time_schedule_name || "", inicio: config?.hora_inicio || null, fin: config?.hora_fin || null, puertas: config?.puertas || [] });
       asignacionesPorEstudiante.set(row.estudiante_id, lista);
     });
+    const horaLocal = valor => new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(valor));
+    const eventosEnHorario = (eventosResult.data || []).filter(evento => {
+      const horaEvento = horaLocal(evento.fecha_evento).slice(0, 5);
+      return horaEvento >= horaInicio && horaEvento <= horaFin;
+    });
     const eventosPorEstudiante = new Map();
-    (eventosResult.data || []).forEach(evento => {
+    eventosEnHorario.forEach(evento => {
       if (!evento.estudiante_id) return;
       const lista = eventosPorEstudiante.get(evento.estudiante_id) || [];
       lista.push(evento);
       eventosPorEstudiante.set(evento.estudiante_id, lista);
     });
-    const horaLocal = valor => new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(valor));
-    const eventosSincronizados = eventosResult.data || [];
+    const eventosSincronizados = eventosEnHorario;
     const hayEventosSincronizados = eventosSincronizados.length > 0;
     const resumen = (estudiantesResult.data || []).map(estudiante => {
       const niveles = asignacionesPorEstudiante.get(estudiante.id) || [];
@@ -207,6 +216,8 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     return res.json({
       ok: true,
       fecha,
+      horaInicio,
+      horaFin,
       totalEstudiantes: total,
       indicadores,
       data: resumen,
