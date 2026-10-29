@@ -12,6 +12,22 @@ import {
 
 const router = express.Router();
 
+// Sincronizaciones de eventos en segundo plano, una por fecha, para que abrir/cambiar fecha no espere a HikCentral.
+const sincronizacionesEventosDiarios = new Map();
+const erroresSincronizacionEventosDiarios = new Map();
+
+function iniciarSincronizacionEventosDiarios(fecha) {
+  if (sincronizacionesEventosDiarios.has(fecha)) return;
+  erroresSincronizacionEventosDiarios.delete(fecha);
+  const tarea = obtenerDashboardEventosHik(fecha, fecha)
+    .catch(error => {
+      erroresSincronizacionEventosDiarios.set(fecha, error.message || "Falló la sincronización con HikCentral.");
+      console.error("[Dashboard] Sincronización diaria fallida para " + fecha + ":", error.message);
+    })
+    .finally(() => sincronizacionesEventosDiarios.delete(fecha));
+  sincronizacionesEventosDiarios.set(fecha, tarea);
+}
+
 router.post("/", registrarSalida);
 router.get("/hoy", obtenerSalidasHoy);
 router.get("/pendientes", obtenerPendientes);
@@ -24,9 +40,11 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
     }).format(new Date());
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
-    // Sincroniza primero los registros reales de HikCentral para la fecha seleccionada.
-    // La función consulta POST /artemis/api/acs/v1/door/events y persiste los eventos sin duplicarlos.
-    const sincronizacionEventos = await obtenerDashboardEventosHik(fecha, fecha);
+    // No bloquear la pantalla esperando a HikCentral: mostrar primero los eventos reales ya persistidos
+    // en Supabase y ejecutar la consulta en vivo en segundo plano. La UI puede consultar el estado.
+    iniciarSincronizacionEventosDiarios(fecha);
+    const sincronizandoEventos = sincronizacionesEventosDiarios.has(fecha);
+    const sincronizacionEventos = null;
     const inicio = new Date(fecha + "T05:00:00.000Z");
     const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
     const [estudiantesResult, eventosResult, asignacionesResult, configuracionResult] = await Promise.all([
@@ -154,6 +172,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       totalEstudiantes: total,
       indicadores,
       data: resumen,
+      sincronizando: sincronizandoEventos,
       fuentes: {
         estudiantes: total,
         eventosHikCentral: eventosSincronizados.length,
@@ -164,6 +183,8 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         eventosDisponibles: hayEventosSincronizados
       },
       advertencias: [
+        ...(erroresSincronizacionEventosDiarios.has(fecha) ? [erroresSincronizacionEventosDiarios.get(fecha)] : []),
+        ...(sincronizandoEventos ? ["Actualizando eventos reales desde HikCentral; los indicadores de ausencia no se consideran definitivos hasta completar la sincronización."] : []),
         ...(Array.isArray(sincronizacionEventos?.advertencias) ? sincronizacionEventos.advertencias : []),
         ...(!hayEventosSincronizados ? ["No hay eventos de HikCentral sincronizados para esta fecha. Los indicadores de entrada, salida y ausencia no deben interpretarse como resultados reales."] : []),
         ...(total === 0 ? ["No hay estudiantes activos en Supabase."] : [])
