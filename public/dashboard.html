@@ -575,7 +575,14 @@
           filtro.value = indicadoresDiariosData.some(item => item.key === previous) ? previous : "";
         }
         filtrarResumenDiarioSalidasHik();
-        estado.textContent = "Fecha: " + result.fecha + " · Total de estudiantes activos en la base de datos: " + result.totalEstudiantes;
+        estado.textContent = "Fecha: " + result.fecha + " · Total de estudiantes activos en la base de datos: " + result.totalEstudiantes + (result.sincronizando ? " · Actualizando eventos reales de HikCentral…" : "");
+        // Si la sincronización sigue en curso, refrescar desde Supabase cuando termine para mostrar los datos actuales.
+        if (result.sincronizando) {
+          window.setTimeout(() => {
+            const fechaActual = document.getElementById("dsFechaResumen")?.value || "";
+            if (fechaActual === fecha) cargarResumenDiarioSalidasHik();
+          }, 3000);
+        }
       } catch (error) {
         indicadores.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3"></td></tr>';
         indicadores.querySelector("td").textContent = error.message || "Error calculando indicadores.";
