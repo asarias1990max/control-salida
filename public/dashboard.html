@@ -388,29 +388,10 @@
     let eventosFiltradosDashboardHik = [];
 
     async function inicializarDashboardSalidas() {
-      const modo = document.getElementById("dsModoFecha");
-      const inicio = document.getElementById("dsFechaInicio");
-      const fin = document.getElementById("dsFechaFin");
-      const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-      if (inicio && !inicio.value) inicio.value = hoy;
-      if (fin && !fin.value) fin.value = hoy;
       const fechaResumen = document.getElementById("dsFechaResumen");
+      const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
       if (fechaResumen && !fechaResumen.value) fechaResumen.value = hoy;
-      if (modo) modo.onchange = () => {
-        const rango = document.getElementById("dsRangoFechas");
-        if (rango) {
-          rango.classList.toggle("d-none", modo.value !== "rango");
-          rango.classList.toggle("d-flex", modo.value === "rango");
-        }
-      };
-      await cargarConfiguracionHorariosHik();
-      await cargarHistorialDiarioHik();
-      await cargarNivelesEstudiantesHik();
-      await cargarPuertasDashboardHik();
-      const selectorPuertas = document.getElementById("dsPuertas");
-      if (selectorPuertas && selectorPuertas.options.length > 0 && selectorPuertas.options[0].value) {
-        await cargarDashboardEventosHik();
-      }
+      await cargarResumenDiarioSalidasHik();
     }
 
     function horaTextoHik(valor) {
@@ -504,35 +485,56 @@
     let resumenDiarioSalidasData = [];
     let indicadoresDiariosData = [];
 
+    function textoEventoAcceso(puerta, hora, resultado) {
+      if (!puerta && !hora && !resultado) return "Sin registro";
+      return [puerta || "Puerta no identificada", hora || "", resultado || "Resultado no identificado"].filter(Boolean).join(" - ");
+    }
+
     function filtrarResumenDiarioSalidasHik(key) {
       const filtro = document.getElementById("dsFiltroIndicador");
       if (filtro && typeof key === "string") filtro.value = key;
       const seleccionado = filtro?.value || "";
       const cuerpo = document.getElementById("dsTablaResumenDiario");
+      const conteo = document.getElementById("dsConteoFiltro");
       if (!cuerpo) return;
+      const itemIndicador = indicadoresDiariosData.find(item => item.key === seleccionado);
       const rows = seleccionado
         ? resumenDiarioSalidasData.filter(row => row.flags && row.flags[seleccionado])
-        : resumenDiarioSalidasData;
+        : [];
       cuerpo.replaceChildren();
+      if (!seleccionado) {
+        cuerpo.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">Selecciona un indicador en «VER LISTADO DE» para ver los estudiantes.</td></tr>';
+        if (conteo) conteo.textContent = "";
+        return;
+      }
       if (!rows.length) {
-        cuerpo.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-3">No hay estudiantes para este indicador.</td></tr>';
+        cuerpo.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-3">No hay estudiantes para este indicador.</td></tr>';
+        if (conteo) conteo.textContent = "0 estudiantes";
         return;
       }
       rows.forEach(row => {
         const tr = document.createElement("tr");
-        const nivel = (row.niveles || []).join(", ") || "Sin nivel asignado";
-        const config = row.configuracion || {};
         const valores = [
-          row.apellidos || "", row.nombres || "", row.codigo || row.codigo_hik || "—",
-          row.seccion || "—", row.curso || "—", row.paralelo || "—",
-          [row.hora_entrada || "—", row.puerta_entrada || ""].filter(Boolean).join(" · "),
-          [row.hora_salida || "—", row.puerta_salida || ""].filter(Boolean).join(" · "),
-          nivel, config.horario || "Por verificar", config.puertas || "Por verificar",
-          [row.resultado_entrada ? "Entrada: " + row.resultado_entrada : "", row.resultado_salida ? "Salida: " + row.resultado_salida : ""].filter(Boolean).join(" | ") || "Sin eventos"
+          row.apellidos || "",
+          row.nombres || "",
+          row.codigo || row.codigo_hik || "—",
+          row.seccion || "—",
+          row.curso || "—",
+          row.paralelo || "—",
+          textoEventoAcceso(row.puerta_entrada, row.hora_entrada, row.resultado_entrada),
+          textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida),
+          (row.niveles || []).join(", ") || "—",
+          row.configuracion?.horario || "—",
+          row.configuracion?.puertas || "—"
         ];
-        valores.forEach(value => { const td=document.createElement("td"); td.textContent=String(value); tr.append(td); });
+        valores.forEach(value => {
+          const td = document.createElement("td");
+          td.textContent = String(value);
+          tr.append(td);
+        });
         cuerpo.append(tr);
       });
+      if (conteo) conteo.textContent = (itemIndicador?.indicador || "Listado") + ": " + rows.length + " estudiantes";
     }
 
     async function cargarResumenDiarioSalidasHik() {
@@ -544,8 +546,9 @@
       if (!cuerpo || !estado || !indicadores) return;
       if (!fecha) { estado.textContent = "Selecciona una fecha para generar el control."; return; }
       estado.className = "small text-muted mb-2";
-      estado.textContent = "Calculando indicadores según la puerta utilizada y el resultado del evento...";
-      cuerpo.innerHTML = '<tr><td colspan="12" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
+      estado.textContent = "Consultando eventos y calculando indicadores...";
+      indicadores.innerHTML = '<tr><td colspan="4" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
+      cuerpo.innerHTML = '<tr><td colspan="11" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
       try {
         const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha), { headers: { Accept: "application/json" } });
         const result = await response.json();
@@ -554,31 +557,32 @@
         indicadoresDiariosData = Array.isArray(result.indicadores) ? result.indicadores : [];
         indicadores.replaceChildren();
         indicadoresDiariosData.forEach(item => {
-          const tr=document.createElement("tr");
-          [item.indicador, item.estudiantes, item.total, Number(item.porcentaje).toFixed(2)+"%"].forEach(value => {
-            const td=document.createElement("td"); td.textContent=String(value); tr.append(td);
+          const tr = document.createElement("tr");
+          [item.indicador, item.estudiantes, item.total, Number(item.porcentaje).toFixed(2) + "%"].forEach(value => {
+            const td = document.createElement("td");
+            td.textContent = String(value);
+            tr.append(td);
           });
-          const td=document.createElement("td");
-          const button=document.createElement("button");
-          button.type="button"; button.className="btn btn-sm btn-outline-primary";
-          button.textContent="Ver estudiantes";
-          button.addEventListener("click",()=>filtrarResumenDiarioSalidasHik(item.key));
-          td.append(button); tr.append(td); indicadores.append(tr);
+          tr.style.cursor = "pointer";
+          tr.title = "Seleccionar este indicador";
+          tr.addEventListener("click", () => filtrarResumenDiarioSalidasHik(item.key));
+          indicadores.append(tr);
         });
         if (filtro) {
           const previous = filtro.value;
-          filtro.replaceChildren(new Option("Todos los estudiantes", ""));
-          indicadoresDiariosData.forEach(item => filtro.add(new Option(item.indicador, item.key)));
+          filtro.replaceChildren(new Option("Selecciona un indicador", ""));
+          indicadoresDiariosData.forEach(item => filtro.add(new Option(item.indicador + " (" + item.estudiantes + " estudiantes)", item.key)));
           filtro.value = indicadoresDiariosData.some(item => item.key === previous) ? previous : "";
         }
         filtrarResumenDiarioSalidasHik();
-        estado.textContent = "Control del " + result.fecha + ": " + result.totalEstudiantes + " estudiantes activos. Entrada se identifica por puertas CE y salida por puertas CS; concedido/error se determina por el resultado registrado en HikCentral.";
+        estado.textContent = "Fecha: " + result.fecha + " · Total de estudiantes activos en la base de datos: " + result.totalEstudiantes;
       } catch (error) {
-        indicadores.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3"></td></tr>';
+        indicadores.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3"></td></tr>';
         indicadores.querySelector("td").textContent = error.message || "Error calculando indicadores.";
-        cuerpo.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-3"></td></tr>';
+        cuerpo.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-3"></td></tr>';
         cuerpo.querySelector("td").textContent = error.message || "Error calculando el control diario.";
-        estado.className = "small text-danger mb-2"; estado.textContent = error.message || "Error calculando el control diario.";
+        estado.className = "small text-danger mb-2";
+        estado.textContent = error.message || "Error calculando el control diario.";
       }
     }
 
