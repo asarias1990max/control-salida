@@ -40,9 +40,10 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit"
     }).format(new Date());
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
-    // No bloquear la pantalla esperando a HikCentral: mostrar primero los eventos reales ya persistidos
-    // en Supabase y ejecutar la consulta en vivo en segundo plano. La UI puede consultar el estado.
-    iniciarSincronizacionEventosDiarios(fecha);
+    // La consulta inicial inicia la sincronización en segundo plano. Las consultas de sondeo
+    // usan soloLectura=1 para consultar el estado sin volver a iniciar otra sincronización.
+    const soloLectura = String(req.query.soloLectura || "") === "1";
+    if (!soloLectura) iniciarSincronizacionEventosDiarios(fecha);
     const sincronizandoEventos = sincronizacionesEventosDiarios.has(fecha);
     const sincronizacionEventos = null;
     const inicio = new Date(fecha + "T05:00:00.000Z");
