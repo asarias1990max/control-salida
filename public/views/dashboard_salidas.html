@@ -265,5 +265,20 @@
         <tbody id="dsTablaResumenDiario"><tr><td colspan="8" class="text-center ds-empty">Selecciona una fecha y consulta.</td></tr></tbody>
       </table>
     </div>
+    <div id="dsPaginadorResumen" class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-top">
+      <div class="d-flex align-items-center gap-2 small text-muted">
+        <label for="dsTamanoPagina" class="mb-0">Mostrar</label>
+        <select id="dsTamanoPagina" class="form-select form-select-sm" style="width:78px" onchange="cambiarTamanoPaginaResumenHik()">
+          <option value="10" selected>10</option><option value="20">20</option><option value="50">50</option>
+        </select>
+        <span>registros</span>
+        <span id="dsInfoPagina" class="ms-2"></span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary" id="dsPaginaAnterior" onclick="cambiarPaginaResumenHik(-1)" disabled>Anterior</button>
+        <span id="dsPaginaActual" class="small text-muted">Página 1 de 1</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="dsPaginaSiguiente" onclick="cambiarPaginaResumenHik(1)" disabled>Siguiente</button>
+      </div>
+    </div>
   </section>
 </div>
