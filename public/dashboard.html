@@ -259,7 +259,7 @@
     opciones.forEach(op => {
       if (permisos.includes(op.permiso)) {
         menu.innerHTML += `
-          <a href="#" onclick="cargarVista('${op.permiso}')">
+          <a href="#" title="${op.texto}" aria-label="${op.texto}" onclick="cargarVista('${op.permiso}')">
             <i class="bi ${op.icono}"></i><span class="sidebar-link-text">${op.texto}</span>
           </a>
         `;
