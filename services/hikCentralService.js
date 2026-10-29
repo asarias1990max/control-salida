@@ -582,26 +582,46 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
   if (!doorIndexCodes.length) throw new Error("Selecciona al menos una puerta válida de HikCentral.");
   console.log("[HikCentral] Puntos de acceso seleccionados para eventos:", doorIndexCodes.length);
 
+  // El manual OpenAPI define eventType como un único código numérico por petición.
+  // Consultamos concesiones faciales y fallos relevantes para que el dashboard no omita los errores.
+  const tiposEvento = [
+    { codigo: 196893, nombre: "Access Granted by Face" },
+    { codigo: 197151, nombre: "Access Denied by Face" },
+    { codigo: 197160, nombre: "Facial Recognition Failed" },
+    { codigo: 197383, nombre: "Anti-passback Violation" },
+    { codigo: 197384, nombre: "Invalid Time Period" },
+    { codigo: 197635, nombre: "No Access Level Assigned" }
+  ];
   const eventos = [];
-  let pageNo = 1;
-  let total = Infinity;
   const pageSize = 500;
-  while (eventos.length < total) {
-    const timestamp = Date.now().toString();
-    const nonce = crypto.randomUUID();
-    const body = { startTime: inicio + "T06:00:00-05:00", endTime: fin + "T20:00:00-05:00", eventType: 196893, doorIndexCodes, pageNo, pageSize, sortField: "SwipeTime", orderType: 1 };
-    const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
-    const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
-    const result = response.data;
-    if (!result || String(result.code) !== "0") throw new Error("HikCentral rechazó los eventos: code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
-    const data = result.data || {};
-    const list = Array.isArray(data.list) ? data.list : Array.isArray(data.events) ? data.events : Array.isArray(data.records) ? data.records : Array.isArray(data.eventList) ? data.eventList : [];
-    if (pageNo === 1) console.log("[HikCentral] door/events estructura:", JSON.stringify({ dataKeys: Object.keys(data), listLength: list.length, firstEventKeys: list[0] ? Object.keys(list[0]) : [], total: data.total, doorIndexCodes, startTime: body.startTime, endTime: body.endTime, eventType: body.eventType }));
-    total = Number(data.total ?? list.length);
-    eventos.push(...list);
-    if (!list.length || list.length < pageSize || eventos.length >= total) break;
-    pageNo++;
+  for (const tipo of tiposEvento) {
+    let pageNo = 1;
+    let total = Infinity;
+    let recogidos = 0;
+    while (recogidos < total) {
+      const timestamp = Date.now().toString();
+      const nonce = crypto.randomUUID();
+      const body = { startTime: inicio + "T06:00:00-05:00", endTime: fin + "T20:00:00-05:00", eventType: tipo.codigo, doorIndexCodes, pageNo, pageSize, sortField: "SwipeTime", orderType: 1 };
+      const signature = generarFirma("POST", DOOR_EVENTS_PATH, timestamp, nonce);
+      const response = await axios.post(HIK_BASE_URL + DOOR_EVENTS_PATH, body, { httpsAgent, timeout: 30000, headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Ca-Key": HIK_APP_KEY, "X-Ca-Timestamp": timestamp, "X-Ca-Nonce": nonce, "X-Ca-Signature": signature, "X-Ca-Signature-Headers": "x-ca-key,x-ca-nonce,x-ca-timestamp" } });
+      const result = response.data;
+      if (!result || String(result.code) !== "0") throw new Error("HikCentral rechazó la consulta de eventos " + tipo.codigo + ": code=" + (result?.code ?? "sin código") + "; msg=" + (result?.msg || "respuesta no válida"));
+      const data = result.data || {};
+      const list = Array.isArray(data.list) ? data.list : Array.isArray(data.events) ? data.events : Array.isArray(data.records) ? data.records : Array.isArray(data.eventList) ? data.eventList : [];
+      if (pageNo === 1) console.log("[HikCentral] door/events:", JSON.stringify({ eventType: tipo.codigo, nombre: tipo.nombre, dataKeys: Object.keys(data), listLength: list.length, total: data.total, doorIndexCodes, startTime: body.startTime, endTime: body.endTime }));
+      total = Number(data.total ?? list.length);
+      recogidos += list.length;
+      eventos.push(...list.map(evento => ({
+        ...evento,
+        eventType: String(evento.eventType ?? evento.eventTypeCode ?? tipo.codigo),
+        eventName: evento.eventName || evento.eventTypeName || tipo.nombre
+      })));
+      if (!list.length || list.length < pageSize || recogidos >= total) break;
+      pageNo++;
+    }
   }
+  // Deduplicar por eventId si el mismo registro aparece en más de una consulta.
+  const eventosUnicos = [...new Map(eventos.map((evento, i) => [String(evento.eventId || evento.eventIndexCode || [evento.eventTime || evento.SwipeTime, evento.personId, evento.doorIndexCode, evento.eventType, i].join("|")), evento])).values()];
   // La tabla estudiantes de Supabase es la fuente autorizada del dashboard.
   // Solo se muestran eventos cuyo identificador coincide con codigo_hik de un estudiante activo.
   const estudiantes = [];
@@ -625,7 +645,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     if (codigoHik) estudiantePorCodigoHik.set(codigoHik, estudiante);
   });
 
-  const eventosSoloEstudiantes = eventos.flatMap(evento => {
+  const eventosSoloEstudiantes = eventosUnicos.flatMap(evento => {
     const identificadores = [
       evento.personCode,
       evento.personId,
