@@ -42,8 +42,12 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
 
     const normalizar = valor => String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^door\s+/, "").replace(/[^a-z0-9]/g, "");
     const resultadoConcedido = evento => {
-      const texto = normalizar([evento.resultado, evento.datos_originales?.attendanceStatus, evento.datos_originales?.eventStatus, evento.datos_originales?.status, evento.datos_originales?.result, evento.datos_originales?.checkResult].filter(Boolean).join(" "));
-      if (/error|denegad|denied|failed|failure|invalid|noautoriz|rechaz|forbidden|notgranted/.test(texto)) return false;
+      const codigoTipo = String(evento.tipo_evento_codigo || evento.datos_originales?.eventType || evento.datos_originales?.eventTypeCode || "").trim();
+      // Códigos verificados en el OpenAPI HikCentral V2.6.1.
+      if (codigoTipo === "196893" || codigoTipo === "198914" || codigoTipo === "198915") return true;
+      if (["197151", "197160", "197383", "197384", "197635"].includes(codigoTipo)) return false;
+      const texto = normalizar([evento.resultado, evento.tipo_evento, evento.datos_originales?.eventName, evento.datos_originales?.eventTypeName, evento.datos_originales?.attendanceStatus, evento.datos_originales?.eventStatus, evento.datos_originales?.status, evento.datos_originales?.result, evento.datos_originales?.checkResult, evento.datos_originales?.eventDescription].filter(Boolean).join(" "));
+      if (/error|denegad|denied|failed|failure|invalid|noautoriz|rechaz|forbidden|notgranted|facialrecognitionfailed|antipassbackviolation|noaccesslevelassigned/.test(texto)) return false;
       return /concedid|granted|success|successful|permitid|authorized|autorizad|allow|normal/.test(texto);
     };
     // Convención de puertas del colegio: CE = entrada y CS = salida.
