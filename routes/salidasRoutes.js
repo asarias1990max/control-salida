@@ -221,6 +221,8 @@ router.get("/dashboard-niveles-estudiantes", async (req, res) => {
         estudiante_id: row.estudiante_id,
         codigo: estudiante.codigo || "",
         codigo_hik: estudiante.codigo_hik || "",
+        apellidos: estudiante.apellidos || "",
+        nombres: estudiante.nombres || "",
         estudiante: [estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" ").trim(),
         seccion: estudiante.seccion || "",
         curso: estudiante.curso || "",
