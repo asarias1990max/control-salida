@@ -1,38 +1,244 @@
-<div class="container-fluid py-2">
-  <div class="mb-3">
-    <h4 class="mb-1">DASHBOARD ENTRADAS Y SALIDAS DE ESTUDIANTES</h4>
-    <div class="d-flex flex-wrap align-items-end gap-2">
-      <div>
-        <label for="dsFechaResumen" class="form-label mb-1">Fecha</label>
-        <input id="dsFechaResumen" type="date" class="form-control">
+<style>
+  .ds-dashboard {
+    --ds-ink: #17243b;
+    --ds-muted: #718096;
+    --ds-line: #e6ebf2;
+    --ds-blue: #2449a5;
+    color: var(--ds-ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .ds-dashboard .ds-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 1.45rem 1.5rem;
+    border: 1px solid #e1e8f5;
+    border-radius: 20px;
+    background: linear-gradient(120deg, #fff 0%, #f4f7ff 65%, #edf3ff 100%);
+    box-shadow: 0 8px 24px rgba(24, 47, 94, .055);
+  }
+  .ds-dashboard .ds-hero:after {
+    content: "";
+    position: absolute;
+    width: 190px;
+    height: 190px;
+    right: -58px;
+    top: -95px;
+    border-radius: 50%;
+    background: rgba(54, 93, 190, .07);
+    pointer-events: none;
+  }
+  .ds-dashboard .ds-title-icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    color: #2449a5;
+    border-radius: 15px;
+    background: #e8efff;
+    font-size: 1.35rem;
+  }
+  .ds-dashboard .ds-eyebrow {
+    color: #4262a7;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .ds-dashboard .ds-page-title {
+    font-size: clamp(1.15rem, 2vw, 1.55rem);
+    font-weight: 750;
+    letter-spacing: -.035em;
+    margin: .15rem 0 .3rem;
+  }
+  .ds-dashboard .ds-subtitle { color: var(--ds-muted); font-size: .91rem; }
+  .ds-dashboard .ds-date-panel {
+    min-width: 235px;
+    padding: .85rem;
+    border: 1px solid #e1e8f5;
+    border-radius: 14px;
+    background: rgba(255,255,255,.86);
+    z-index: 1;
+  }
+  .ds-dashboard .form-label {
+    color: #52627a;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .ds-dashboard .form-control, .ds-dashboard .form-select {
+    min-height: 43px;
+    border-color: #dce3ee;
+    border-radius: 10px;
+    color: #24324a;
+    box-shadow: none;
+  }
+  .ds-dashboard .form-control:focus, .ds-dashboard .form-select:focus {
+    border-color: #7f9ce8;
+    box-shadow: 0 0 0 .2rem rgba(55, 93, 185, .12);
+  }
+  .ds-dashboard .btn-primary {
+    min-height: 43px;
+    border: 0;
+    border-radius: 10px;
+    padding-inline: 1rem;
+    background: linear-gradient(135deg, #315bc0, #24449a);
+    box-shadow: 0 5px 12px rgba(36, 73, 165, .17);
+    font-weight: 650;
+  }
+  .ds-dashboard .ds-status {
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    padding: .8rem 1rem;
+    margin: 1rem 0 1.2rem;
+    color: #52627a;
+    background: #f8faff;
+    border: 1px solid #e6ebf5;
+    border-radius: 12px;
+    font-size: .84rem;
+  }
+  .ds-dashboard .ds-section-card {
+    overflow: hidden;
+    border: 1px solid var(--ds-line);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 7px 22px rgba(24, 39, 75, .045);
+  }
+  .ds-dashboard .ds-card-heading {
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid #edf0f5;
+    background: linear-gradient(180deg, #fff, #fbfcff);
+  }
+  .ds-dashboard .ds-section-title {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 750;
+    letter-spacing: -.015em;
+  }
+  .ds-dashboard .ds-section-title i { color: #4164b6; font-size: 1.05rem; }
+  .ds-dashboard .ds-section-note { color: var(--ds-muted); font-size: .8rem; margin-top: .25rem; }
+  .ds-dashboard .table-responsive { margin: 0; }
+  .ds-dashboard .table { margin: 0; border-color: #edf0f5; }
+  .ds-dashboard .table thead th {
+    padding: .82rem .9rem;
+    color: #586780;
+    background: #f7f9fc;
+    border-bottom: 1px solid #e5eaf2;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .ds-dashboard .table tbody td {
+    padding: .78rem .9rem;
+    color: #344258;
+    font-size: .84rem;
+    vertical-align: middle;
+  }
+  .ds-dashboard #dsResumenIndicadores tr { cursor: pointer; transition: background .15s ease; }
+  .ds-dashboard #dsResumenIndicadores tr:hover td { background: #f1f5ff; }
+  .ds-dashboard #dsResumenIndicadores td:nth-child(3) { font-weight: 750; color: #2449a5; }
+  .ds-dashboard #dsResumenIndicadores td:last-child { font-weight: 750; white-space: nowrap; }
+  .ds-dashboard #dsTablaResumenDiario tr:hover td { background: #f8faff; }
+  .ds-dashboard .ds-filter-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid #edf0f5;
+    background: #fff;
+  }
+  .ds-dashboard .ds-filter-control { width: min(100%, 490px); }
+  .ds-dashboard #dsConteoFiltro {
+    color: #526da8;
+    font-size: .82rem;
+    font-weight: 700;
+    padding-bottom: .7rem;
+  }
+  .ds-dashboard .ds-table-wrap { max-height: 65vh; }
+  .ds-dashboard .ds-table-wrap thead { position: sticky; top: 0; z-index: 2; }
+  .ds-dashboard .ds-table-wrap thead th { box-shadow: 0 1px 0 #e5eaf2; }
+  .ds-dashboard .ds-empty { padding: 2rem 1rem !important; color: #8793a7 !important; }
+  @media (max-width: 767.98px) {
+    .ds-dashboard .ds-hero { padding: 1.1rem; border-radius: 16px; }
+    .ds-dashboard .ds-date-panel { width: 100%; }
+    .ds-dashboard .ds-date-panel .ds-date-controls { display: flex; align-items: end; gap: .5rem; }
+    .ds-dashboard .ds-date-panel .ds-date-controls > div { flex: 1; min-width: 0; }
+    .ds-dashboard .ds-date-panel .btn { white-space: nowrap; padding-inline: .75rem; }
+    .ds-dashboard .ds-card-heading, .ds-dashboard .ds-filter-panel { padding: .9rem; }
+    .ds-dashboard .ds-table-wrap { max-height: 60vh; }
+  }
+</style>
+
+<div class="container-fluid px-0 py-2 ds-dashboard">
+  <section class="ds-hero mb-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 position-relative">
+      <div class="d-flex align-items-center gap-3">
+        <div class="ds-title-icon"><i class="bi bi-speedometer2"></i></div>
+        <div>
+          <div class="ds-eyebrow">Control institucional</div>
+          <h1 class="ds-page-title">Entradas y salidas de estudiantes</h1>
+          <div class="ds-subtitle">Resumen diario de accesos y verificación de estudiantes.</div>
+        </div>
       </div>
-      <button type="button" class="btn btn-primary" onclick="cargarResumenDiarioSalidasHik()"><i class="bi bi-arrow-clockwise me-1"></i>Consultar</button>
+      <div class="ds-date-panel">
+        <label for="dsFechaResumen" class="form-label mb-2"><i class="bi bi-calendar3 me-1"></i> Fecha de consulta</label>
+        <div class="ds-date-controls d-flex align-items-center gap-2">
+          <div><input id="dsFechaResumen" type="date" class="form-control" aria-label="Fecha de consulta"></div>
+          <button type="button" class="btn btn-primary" onclick="cargarResumenDiarioSalidasHik()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Consultar
+          </button>
+        </div>
+      </div>
     </div>
+  </section>
+
+  <div id="dsResumenEstado" class="ds-status" role="status" aria-live="polite">
+    <i class="bi bi-arrow-repeat"></i><span>Consultando eventos de HikCentral...</span>
   </div>
-  <div id="dsResumenEstado" class="small text-muted mb-2" role="status">Consultando eventos de HikCentral...</div>
-  <div class="table-responsive mb-4">
-    <table class="table table-sm table-bordered table-hover align-middle">
-      <thead class="table-light"><tr><th>INDICADOR</th><th>ESTUDIANTES</th><th>TOTAL</th><th class="text-center">%</th></tr></thead>
-      <tbody id="dsResumenIndicadores">
-        <tr><td colspan="4" class="text-center text-muted py-3">Cargando indicadores...</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
-    <div>
-      <label for="dsFiltroIndicador" class="form-label mb-1"><strong>VER LISTADO DE:</strong></label>
-      <select id="dsFiltroIndicador" class="form-select" style="min-width:300px;max-width:480px" onchange="filtrarResumenDiarioSalidasHik()">
-        <option value="">Selecciona un indicador</option>
-      </select>
+
+  <section class="ds-section-card mb-4">
+    <div class="ds-card-heading">
+      <h2 class="ds-section-title"><i class="bi bi-clipboard-data"></i> Indicadores del día</h2>
+      <div class="ds-section-note">Selecciona una fila para consultar directamente los estudiantes asociados al indicador.</div>
     </div>
-    <div id="dsConteoFiltro" class="small text-muted pb-2"></div>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-sm table-bordered table-hover align-middle">
-      <thead class="table-light">
-        <tr><th>APELLIDOS</th><th>NOMBRES</th><th>CÓDIGO</th><th>SECCIÓN</th><th>CURSO</th><th>PARALELO</th><th>ENTRADA</th><th>SALIDA</th><th>NIVEL DE ACCESO</th><th>HORARIO PERMITIDO</th><th>PTO ACCESO PERMITIDO</th></tr>
-      </thead>
-      <tbody id="dsTablaResumenDiario"><tr><td colspan="11" class="text-center text-muted py-3">Selecciona una fecha y consulta.</td></tr></tbody>
-    </table>
-  </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Indicador</th><th>Estudiantes</th><th>Total</th><th class="text-center">%</th></tr></thead>
+        <tbody id="dsResumenIndicadores">
+          <tr><td colspan="4" class="text-center ds-empty"><span class="spinner-border spinner-border-sm me-2"></span>Cargando indicadores...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ds-section-card">
+    <div class="ds-card-heading">
+      <h2 class="ds-section-title"><i class="bi bi-people"></i> Detalle de estudiantes</h2>
+      <div class="ds-section-note">Consulta la información de acceso y las condiciones configuradas para cada estudiante.</div>
+    </div>
+    <div class="ds-filter-panel">
+      <div class="ds-filter-control">
+        <label for="dsFiltroIndicador" class="form-label mb-2">VER LISTADO DE</label>
+        <select id="dsFiltroIndicador" class="form-select" onchange="filtrarResumenDiarioSalidasHik()">
+          <option value="">Selecciona un indicador</option>
+        </select>
+      </div>
+      <div id="dsConteoFiltro" aria-live="polite"></div>
+    </div>
+    <div class="table-responsive ds-table-wrap">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Apellidos</th><th>Nombres</th><th>Código</th><th>Sección</th><th>Curso</th><th>Paralelo</th><th>Entrada</th><th>Salida</th><th>Nivel de acceso</th><th>Horario permitido</th><th>Pto. acceso permitido</th></tr>
+        </thead>
+        <tbody id="dsTablaResumenDiario"><tr><td colspan="11" class="text-center ds-empty">Selecciona una fecha y consulta.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
 </div>
