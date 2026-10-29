@@ -69,6 +69,24 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       if (/error|denegad|denied|failed|failure|invalid|noautoriz|rechaz|forbidden|notgranted|facialrecognitionfailed|antipassbackviolation|noaccesslevelassigned/.test(texto)) return false;
       return /concedid|granted|success|successful|permitid|authorized|autorizad|allow|normal/.test(texto);
     };
+    const textoResultadoEvento = evento => {
+      if (!evento) return "";
+      const codigo = String(evento.tipo_evento_codigo || evento.datos_originales?.eventType || evento.datos_originales?.eventTypeCode || "").trim();
+      const etiquetasPorCodigo = {
+        "196893": "Acceso concedido",
+        "198914": "Acceso concedido",
+        "198915": "Acceso concedido",
+        "197151": "Acceso denegado",
+        "197160": "Reconocimiento facial fallido",
+        "197383": "Violación anti-passback",
+        "197384": "Fuera del horario permitido",
+        "197635": "Sin nivel de acceso asignado"
+      };
+      if (etiquetasPorCodigo[codigo]) return etiquetasPorCodigo[codigo];
+      const resultado = String(evento.resultado || evento.datos_originales?.attendanceStatus || evento.datos_originales?.eventStatus || evento.datos_originales?.status || evento.datos_originales?.result || evento.datos_originales?.checkResult || "").trim();
+      if (resultado) return resultado;
+      return evento.tipo_evento || evento.datos_originales?.eventName || evento.datos_originales?.eventTypeName || "Evento registrado; resultado no informado";
+    };
     // Convención de puertas del colegio: CE = entrada y CS = salida.
     const esEntrada = evento => /^(ce|entrada|entry|ingreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
     const esSalida = evento => /^(cs|salida|exit|egreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
@@ -143,10 +161,10 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         },
         hora_entrada: primeraEntrada ? horaLocal(primeraEntrada.fecha_evento) : null,
         puerta_entrada: primeraEntrada?.puerta_nombre || primeraEntrada?.puerta_codigo || "",
-        resultado_entrada: primeraEntrada ? primeraEntrada.resultado || "" : "",
+        resultado_entrada: textoResultadoEvento(primeraEntrada),
         hora_salida: primeraSalida ? horaLocal(primeraSalida.fecha_evento) : null,
         puerta_salida: primeraSalida?.puerta_nombre || primeraSalida?.puerta_codigo || "",
-        resultado_salida: primeraSalida ? primeraSalida.resultado || "" : "",
+        resultado_salida: textoResultadoEvento(primeraSalida),
         eventos_entrada: entradas.length, eventos_salida: salidas.length, flags
       };
     });
