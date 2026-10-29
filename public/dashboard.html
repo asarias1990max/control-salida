@@ -91,7 +91,94 @@
     .section-box {
       display: none;
     }
-  </style>
+  
+    /* Sistema visual compartido para todas las secciones y vistas cargadas en el panel */
+    :root {
+      --app-ink: #17243b;
+      --app-muted: #718096;
+      --app-line: #e6ebf2;
+      --app-blue: #2449a5;
+      --app-blue-dark: #1d3679;
+      --app-surface: #ffffff;
+      --app-canvas: #f3f6fb;
+      --app-radius: 16px;
+      --app-shadow: 0 8px 24px rgba(24, 47, 94, .07);
+    }
+    body { color: var(--app-ink); background: var(--app-canvas); }
+    .main { background: var(--app-canvas); }
+    .topbar {
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--app-line);
+      border-radius: 16px;
+      box-shadow: 0 4px 18px rgba(24,47,94,.045);
+      margin-bottom: 1.25rem;
+    }
+    .topbar h5, .section-box h1, .section-box h2, .section-box h3,
+    .section-box h4, .section-box h5, .section-box h6 { color: var(--app-ink); }
+    .section-box .card, #inicio .card, .modal-content {
+      border: 1px solid var(--app-line) !important;
+      border-radius: var(--app-radius) !important;
+      box-shadow: var(--app-shadow) !important;
+    }
+    .section-box .card-header, .modal-header {
+      background: linear-gradient(120deg,#fff,#f5f7fc);
+      border-bottom: 1px solid var(--app-line);
+    }
+    .section-box .form-control, .section-box .form-select, .modal .form-control,
+    .modal .form-select, #inicio .form-control, #inicio .form-select {
+      min-height: 42px;
+      border-color: #dce4ef;
+      border-radius: 10px;
+      box-shadow: none;
+    }
+    .section-box .form-control:focus, .section-box .form-select:focus,
+    .modal .form-control:focus, .modal .form-select:focus {
+      border-color: #8da9e8;
+      box-shadow: 0 0 0 .2rem rgba(36,73,165,.11);
+    }
+    .section-box .btn, #inicio .btn, .modal .btn {
+      border-radius: 10px;
+      font-weight: 600;
+      transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .section-box .btn:hover, #inicio .btn:hover, .modal .btn:hover {
+      transform: translateY(-1px);
+    }
+    .section-box .btn-primary, #inicio .btn-primary, .modal .btn-primary {
+      background: var(--app-blue);
+      border-color: var(--app-blue);
+      box-shadow: 0 4px 10px rgba(36,73,165,.14);
+    }
+    .section-box .table, #inicio .table { --bs-table-bg: transparent; margin-bottom: 0; }
+    .section-box .table thead th, #inicio .table thead th {
+      color: #5e6d83;
+      background: #f5f7fb;
+      border-bottom: 1px solid var(--app-line);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .025em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .section-box .table td, .section-box .table th, #inicio .table td, #inicio .table th {
+      padding: .8rem .75rem;
+      vertical-align: middle;
+      border-color: #edf1f6;
+    }
+    .section-box .table tbody tr:hover, #inicio .table tbody tr:hover {
+      --bs-table-bg: #f7f9fe;
+    }
+    .section-box .alert { border-radius: 12px; }
+    .section-box .badge { font-weight: 600; letter-spacing: .01em; }
+    .section-box hr { border-color: var(--app-line); opacity: 1; }
+    .section-box .pagination .page-link { border-radius: 8px; margin: 0 2px; }
+    .section-box pre { border-color: var(--app-line) !important; border-radius: 10px !important; }
+    @media (max-width: 767.98px) {
+      .topbar { border-radius: 12px; padding: .75rem; }
+      .section-box .card-body, .section-box .card.p-4 { padding: 1rem !important; }
+      .section-box .table { font-size: .86rem; }
+    }
+</style>
 </head>
 
 <body class="sidebar-collapsed">
