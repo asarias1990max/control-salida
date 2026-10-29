@@ -709,7 +709,6 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
 
   // Algunos modelos de HikCentral no incluyen personName en el evento.
   // Resolver los personId disponibles mediante el endpoint de detalle de persona.
-  const personIdInfoPath = "/artemis/api/resource/v1/person/personId/personInfo";
   const personCodeInfoPath = "/artemis/api/resource/v1/person/personCode/personInfo";
   const personasPorClave = new Map();
   const clavesPendientes = new Map();
