@@ -37,7 +37,15 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     if (asignacionesResult.error) throw asignacionesResult.error;
     if (configuracionResult.error) throw configuracionResult.error;
 
-    const normalizarPuerta = (valor) => String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^door\s+/, "").replace(/[^a-z0-9]/g, "");
+    const normalizar = valor => String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/^door\s+/, "").replace(/[^a-z0-9]/g, "");
+    const resultadoConcedido = evento => {
+      const texto = normalizar([evento.resultado, evento.datos_originales?.attendanceStatus, evento.datos_originales?.eventStatus, evento.datos_originales?.status, evento.datos_originales?.result, evento.datos_originales?.checkResult].filter(Boolean).join(" "));
+      if (/error|denegad|denied|failed|failure|invalid|noautoriz|rechaz|forbidden|notgranted/.test(texto)) return false;
+      return /concedid|granted|success|successful|permitid|authorized|autorizad|allow|normal/.test(texto);
+    };
+    // Convención de puertas del colegio: CE = entrada y CS = salida.
+    const esEntrada = evento => /^(ce|entrada|entry|ingreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
+    const esSalida = evento => /^(cs|salida|exit|egreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
     const configs = configuracionResult.data || [];
     const configPorNivel = new Map(configs.map(x => [String(x.nivel_acceso || "").trim().toLowerCase(), x]));
     const asignacionesPorEstudiante = new Map();
@@ -45,14 +53,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       const nivel = row.niveles_acceso_hikcentral || {};
       const config = configPorNivel.get(String(nivel.nombre || "").trim().toLowerCase());
       const lista = asignacionesPorEstudiante.get(row.estudiante_id) || [];
-      lista.push({
-        nombre: nivel.nombre || "Nivel sin nombre",
-        horaExacta: nivel.hora_salida || null,
-        plantilla: nivel.time_schedule_name || "",
-        inicio: config?.hora_inicio || null,
-        fin: config?.hora_fin || null,
-        puertas: config?.puertas || []
-      });
+      lista.push({ nombre: nivel.nombre || "Nivel sin nombre", horaExacta: nivel.hora_salida || null, plantilla: nivel.time_schedule_name || "", inicio: config?.hora_inicio || null, fin: config?.hora_fin || null, puertas: config?.puertas || [] });
       asignacionesPorEstudiante.set(row.estudiante_id, lista);
     });
     const eventosPorEstudiante = new Map();
@@ -62,67 +63,80 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       lista.push(evento);
       eventosPorEstudiante.set(evento.estudiante_id, lista);
     });
-    const ahoraLocal = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
-    const fechaHoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const horaLocal = valor => new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(valor));
     const resumen = (estudiantesResult.data || []).map(estudiante => {
       const niveles = asignacionesPorEstudiante.get(estudiante.id) || [];
       const eventos = eventosPorEstudiante.get(estudiante.id) || [];
-      const reglas = niveles.map(n => ({ ...n, puertasNormalizadas: n.puertas.map(normalizarPuerta) })).filter(n => n.inicio && n.fin);
-      const eventosSalida = eventos.filter(evento => {
-        const puerta = normalizarPuerta(evento.puerta_nombre || evento.puerta_codigo);
-        if (!puerta) return false;
-        const reglasConPuerta = reglas.filter(regla => regla.puertasNormalizadas.some(p => p && (puerta.includes(p) || p.includes(puerta))));
-        return reglasConPuerta.length > 0;
+      const entradas = eventos.filter(esEntrada);
+      const salidas = eventos.filter(esSalida);
+      const entradasConcedidas = entradas.filter(resultadoConcedido);
+      const salidasConcedidas = salidas.filter(resultadoConcedido);
+      const entradasError = entradas.filter(e => !resultadoConcedido(e));
+      const salidasError = salidas.filter(e => !resultadoConcedido(e));
+      const puertasPermitidas = niveles.flatMap(n => n.puertas || []).map(normalizar).filter(Boolean);
+      const salidasConcedidasPuertaIncorrecta = salidasConcedidas.filter(e => {
+        const puerta = normalizar(e.puerta_nombre || e.puerta_codigo);
+        return puertasPermitidas.length > 0 && !puertasPermitidas.some(p => puerta.includes(p) || p.includes(puerta));
       });
-      const eventoSalida = eventosSalida[0] || null;
-      const horaReal = eventoSalida ? new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(eventoSalida.fecha_evento)) : null;
-      let estado = "Pendiente de salida";
-      if (!niveles.length) estado = "Nivel de acceso no sincronizado";
-      else if (!reglas.length) estado = "Horario por verificar";
-      else if (eventoSalida) {
-        const minutos = horaReal ? Number(horaReal.slice(0, 2)) * 60 + Number(horaReal.slice(3, 5)) : null;
-        const dentroHorario = reglas.some(regla => {
-          if (minutos === null) return false;
-          const ini = Number(String(regla.inicio).slice(0, 2)) * 60 + Number(String(regla.inicio).slice(3, 5));
-          const finMin = Number(String(regla.fin).slice(0, 2)) * 60 + Number(String(regla.fin).slice(3, 5));
-          return minutos >= ini && minutos <= finMin;
+      const reglas = niveles.filter(n => n.inicio && n.fin);
+      const salidasFueraHorario = salidasConcedidas.filter(e => {
+        const h = horaLocal(e.fecha_evento);
+        const minutos = Number(h.slice(0,2))*60 + Number(h.slice(3,5));
+        return reglas.length > 0 && !reglas.some(r => {
+          const ini = Number(String(r.inicio).slice(0,2))*60 + Number(String(r.inicio).slice(3,5));
+          const finM = Number(String(r.fin).slice(0,2))*60 + Number(String(r.fin).slice(3,5));
+          return minutos >= ini && minutos <= finM;
         });
-        const minInicio = Math.min(...reglas.map(regla => Number(String(regla.inicio).slice(0, 2)) * 60 + Number(String(regla.inicio).slice(3, 5))));
-        const minFin = Math.max(...reglas.map(regla => Number(String(regla.fin).slice(0, 2)) * 60 + Number(String(regla.fin).slice(3, 5))));
-        estado = dentroHorario ? "Salida registrada en horario" : minutos < minInicio ? "Salida anticipada" : "Salida fuera del horario";
-      } else if (fecha !== fechaHoy) {
-        estado = "Sin evento de salida registrado";
-      } else {
-        const minAhora = Number(ahoraLocal.slice(0, 2)) * 60 + Number(ahoraLocal.slice(3, 5));
-        const finReglas = Math.max(...reglas.map(regla => Number(String(regla.fin).slice(0, 2)) * 60 + Number(String(regla.fin).slice(3, 5))));
-        estado = minAhora > finReglas ? "Sin evento de salida registrado" : "Pendiente de salida";
-      }
+      });
+      const primeraEntrada = entradasConcedidas[0] || null;
+      const primeraSalida = salidasConcedidas[0] || null;
+      const flags = {
+        entrada_concedida: entradasConcedidas.length > 0,
+        salida_concedida: salidasConcedidas.length > 0,
+        entrada_y_salida: entradasConcedidas.length > 0 && salidasConcedidas.length > 0,
+        ausente: entradas.length === 0 && salidas.length === 0,
+        error_entrada: entradasError.length > 0,
+        error_salida: salidasError.length > 0,
+        fuera_horario: salidasFueraHorario.length > 0,
+        entrada_sin_salida: entradasConcedidas.length > 0 && salidasConcedidas.length === 0,
+        salida_sin_entrada: salidasConcedidas.length > 0 && entradasConcedidas.length === 0,
+        puerta_equivocada: salidasConcedidasPuertaIncorrecta.length > 0
+      };
       return {
-        estudiante_id: estudiante.id,
-        codigo: estudiante.codigo || "",
-        codigo_hik: estudiante.codigo_hik || "",
+        estudiante_id: estudiante.id, codigo: estudiante.codigo || "", codigo_hik: estudiante.codigo_hik || "",
+        apellidos: estudiante.apellidos || "", nombres: estudiante.nombres || "",
         estudiante: [estudiante.apellidos, estudiante.nombres].filter(Boolean).join(" ").trim(),
-        curso: estudiante.curso || "",
-        paralelo: estudiante.paralelo || "",
-        niveles: niveles.map(n => n.nombre),
-        horarios_hikcentral: niveles.map(n => n.plantilla).filter(Boolean),
-        hora_esperada: niveles.map(n => n.horaExacta).filter(Boolean).join(", ") || reglas.map(n => String(n.inicio).slice(0,5) + "–" + String(n.fin).slice(0,5)).join(", "),
-        hora_real_salida: horaReal,
-        puerta_salida: eventoSalida?.puerta_nombre || eventoSalida?.puerta_codigo || "",
-        estado,
-        eventos_del_dia: eventos.length
+        seccion: estudiante.seccion || "", curso: estudiante.curso || "", paralelo: estudiante.paralelo || "",
+        niveles: niveles.map(n => n.nombre), hora_entrada: primeraEntrada ? horaLocal(primeraEntrada.fecha_evento) : null,
+        puerta_entrada: primeraEntrada?.puerta_nombre || primeraEntrada?.puerta_codigo || "",
+        resultado_entrada: primeraEntrada ? primeraEntrada.resultado || "" : "",
+        hora_salida: primeraSalida ? horaLocal(primeraSalida.fecha_evento) : null,
+        puerta_salida: primeraSalida?.puerta_nombre || primeraSalida?.puerta_codigo || "",
+        resultado_salida: primeraSalida ? primeraSalida.resultado || "" : "",
+        eventos_entrada: entradas.length, eventos_salida: salidas.length, flags
       };
     });
-    return res.json({
-      ok: true, fecha, totalEstudiantes: resumen.length,
-      conSalida: resumen.filter(r => r.hora_real_salida).length,
-      sinNivel: resumen.filter(r => r.estado === "Nivel de acceso no sincronizado").length,
-      novedades: resumen.filter(r => ["Salida anticipada", "Salida fuera del horario", "Sin evento de salida registrado", "Horario por verificar"].includes(r.estado)).length,
-      data: resumen
+    const indicadoresDef = [
+      ["entrada_concedida", "Con registro de entrada concedida"],
+      ["salida_concedida", "Con registro de salida concedida"],
+      ["entrada_y_salida", "Con entrada y salida"],
+      ["ausente", "Ausentes (sin entrada ni salida)"],
+      ["error_entrada", "Con error a la entrada"],
+      ["error_salida", "Con error a la salida"],
+      ["fuera_horario", "Salieron fuera de horario permitido"],
+      ["entrada_sin_salida", "Con entrada y sin salida"],
+      ["salida_sin_entrada", "Con salida y sin entrada"],
+      ["puerta_equivocada", "Salieron por puerta equivocada"]
+    ];
+    const total = resumen.length;
+    const indicadores = indicadoresDef.map(([key, label]) => {
+      const estudiantes = resumen.filter(r => r.flags[key]).length;
+      return { key, indicador: label, estudiantes, total, porcentaje: total ? Number((estudiantes * 100 / total).toFixed(2)) : 0 };
     });
+    return res.json({ ok: true, fecha, totalEstudiantes: total, indicadores, data: resumen });
   } catch (error) {
-    console.error("Error generando resumen diario de salidas:", error.message);
-    return res.status(500).json({ ok: false, message: error.message || "No se pudo generar el resumen diario." });
+    console.error("Error generando resumen diario de entradas y salidas:", error.message);
+    return res.status(500).json({ ok: false, message: error.message || "No se pudo generar el control diario." });
   }
 });
 
