@@ -1727,25 +1727,21 @@ function filtrarEstudiantesHigh() {
 function obtenerFiltrosReporte() {
   return {
     fechaInicio: document.getElementById("fechaInicioReporte")?.value || "",
-    fechaFin: document.getElementById("fechaFinReporte")?.value || "",
-    horaInicio: document.getElementById("horaInicioReporte")?.value || "",
-    horaFin: document.getElementById("horaFinReporte")?.value || ""
+    fechaFin: document.getElementById("fechaFinReporte")?.value || ""
   };
 }
 
 function construirUrlReporte(filtros) {
   const params = new URLSearchParams({
     fecha_inicio: filtros.fechaInicio,
-    fecha_fin: filtros.fechaFin,
-    hora_inicio: filtros.horaInicio,
-    hora_fin: filtros.horaFin
+    fecha_fin: filtros.fechaFin
   });
   return "/api/salidas/reporte?" + params.toString();
 }
 
 async function buscarReporteSalidas() {
   const filtros = obtenerFiltrosReporte();
-  const { fechaInicio, fechaFin, horaInicio, horaFin } = filtros;
+  const { fechaInicio, fechaFin } = filtros;
   const mensaje = document.getElementById("mensajeReporte");
   const tabla = document.getElementById("tablaReporteSalidas");
   mensaje.innerHTML = "";
@@ -1758,10 +1754,6 @@ async function buscarReporteSalidas() {
     mensaje.innerHTML = '<div class="alert alert-warning">La fecha de inicio no puede ser mayor a la fecha fin.</div>';
     return;
   }
-  if (horaInicio && horaFin && horaInicio > horaFin) {
-    mensaje.innerHTML = '<div class="alert alert-warning">La hora desde no puede ser mayor que la hora hasta. Para un rango nocturno, realiza dos consultas separadas.</div>';
-    return;
-  }
 
   tabla.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando reporte...</td></tr>';
   try {
@@ -1769,7 +1761,7 @@ async function buscarReporteSalidas() {
     const data = await response.json();
     if (!data.ok) throw new Error(data.message || "Error al obtener el reporte");
     renderTablaReporte(data.data);
-    mensaje.innerHTML = '<div class="alert alert-light border"><i class="bi bi-funnel me-2"></i>Resultados: <strong>' + data.data.length + '</strong> · ' + fechaInicio + ' a ' + fechaFin + ' · ' + (horaInicio || "00:00") + '–' + (horaFin || "23:59") + '</div>';
+    mensaje.innerHTML = '<div class="alert alert-light border"><i class="bi bi-funnel me-2"></i>Resultados: <strong>' + data.data.length + '</strong> · ' + fechaInicio + ' a ' + fechaFin + '</div>';
   } catch (error) {
     console.error("Error:", error);
     mensaje.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>' + error.message + '</div>';
@@ -1816,7 +1808,7 @@ function renderTablaReporte(salidas) {
 
 async function descargarPDFReporte() {
   const filtros = obtenerFiltrosReporte();
-  const { fechaInicio, fechaFin, horaInicio, horaFin } = filtros;
+  const { fechaInicio, fechaFin } = filtros;
 
   if (!fechaInicio || !fechaFin) {
     alert("Seleccione ambas fechas para descargar el reporte.");
@@ -1832,7 +1824,6 @@ async function descargarPDFReporte() {
       return;
     }
 
-    // Crear PDF usando jsPDF en modo horizontal
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.width;
@@ -1842,12 +1833,10 @@ async function descargarPDFReporte() {
     const headerY = 60;
     const lineHeight = 4.5;
 
-    // Título
     doc.setFontSize(18);
     doc.text("Reporte de Salidas", marginLeft, 20);
-    
     doc.setFontSize(12);
-    doc.text(`Periodo: ${fechaInicio} - ${fechaFin} | Horario: ${horaInicio || "00:00"} - ${horaFin || "23:59"}`, marginLeft, 35);
+    doc.text(`Periodo: ${fechaInicio} - ${fechaFin}`, marginLeft, 35);
     doc.text(`Total de salidas: ${data.data.length}`, marginLeft, 45);
 
     const columns = [
@@ -1863,9 +1852,7 @@ async function descargarPDFReporte() {
 
     function printTableHeader(currentY) {
       doc.setFontSize(10);
-      columns.forEach(col => {
-        doc.text(col.label, col.x, currentY);
-      });
+      columns.forEach(col => doc.text(col.label, col.x, currentY));
       doc.setLineWidth(0.2);
       doc.line(marginLeft, currentY + 2, pageWidth - marginRight, currentY + 2);
       doc.setFontSize(8);
@@ -1873,36 +1860,24 @@ async function descargarPDFReporte() {
     }
 
     let y = printTableHeader(headerY);
-
     data.data.forEach(salida => {
       const rowValues = columns.map(col => {
         const value = salida[col.key] != null ? salida[col.key].toString() : '';
         return doc.splitTextToSize(value, col.width);
       });
-
       const rowHeight = Math.max(...rowValues.map(lines => lines.length)) * lineHeight;
-
       if (y + rowHeight > pageHeight - 20) {
         doc.addPage();
         y = printTableHeader(20);
       }
-
-      rowValues.forEach((lines, index) => {
-        const col = columns[index];
-        doc.text(lines, col.x, y);
-      });
-
+      rowValues.forEach((lines, index) => doc.text(lines, columns[index].x, y));
       y += rowHeight + 2;
     });
 
-    // Pie de página
     const fechaGeneracion = new Date().toLocaleDateString();
     doc.setFontSize(8);
     doc.text(`Generado el: ${fechaGeneracion}`, marginLeft, pageHeight - 10);
-
-    // Descargar
-    doc.save(`reporte_salidas_${fechaInicio}_${fechaFin}_${(horaInicio || "0000").replace(":", "")}-${(horaFin || "2359").replace(":", "")}.pdf`);
-
+    doc.save(`reporte_salidas_${fechaInicio}_${fechaFin}.pdf`);
   } catch (error) {
     console.error("Error al descargar PDF:", error);
     alert("Error al generar el PDF.");
