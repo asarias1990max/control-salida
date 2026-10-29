@@ -266,8 +266,10 @@ export async function sincronizarNivelesYAsignacionesHik() {
         : Array.isArray(data) ? data : [];
       if (pageNo === 1) totalPersonas = Number(data.total ?? data.totalNum ?? page.length);
       personas.push(...page);
-      if (!page.length || page.length < pageSize || personas.length >= totalPersonas) break;
+      // No cortar por una página corta si HikCentral reporta más personas en total.
+      if (!page.length || personas.length >= totalPersonas) break;
       pageNo++;
+      if (pageNo > 10000) throw new Error("Se alcanzó el límite de seguridad de paginación para el nivel " + nivel.nombre + ".");
     }
     const personasHik = personas.map(p => ({
       consultaId: String(p.personId ?? p.id ?? p.personCode ?? p.employeeNo ?? "").trim(),
@@ -329,8 +331,17 @@ export async function sincronizarNivelesYAsignacionesHik() {
     const { error } = await supabase.from("estudiante_niveles_acceso_hikcentral").upsert(lote, { onConflict: "estudiante_id,privilege_group_id" });
     if (error) throw new Error("No se pudieron guardar asignaciones de estudiantes: " + error.message);
   }
-  const { error: borrarError } = await supabase.from("estudiante_niveles_acceso_hikcentral").delete().lt("asignado_en", inicioSincronizacion);
-  if (borrarError) throw new Error("No se pudieron limpiar asignaciones antiguas: " + borrarError.message);
+  // No borrar asignaciones previas si hubo personas de HikCentral que no pudieron
+  // relacionarse con estudiantes. Una limpieza en ese escenario podría quitar niveles
+  // válidos a muchos estudiantes a la vez.
+  let asignacionesAntiguasLimpiadas = false;
+  if (personasSinCoincidencia === 0) {
+    const { error: borrarError } = await supabase.from("estudiante_niveles_acceso_hikcentral").delete().lt("asignado_en", inicioSincronizacion);
+    if (borrarError) throw new Error("No se pudieron limpiar asignaciones antiguas: " + borrarError.message);
+    asignacionesAntiguasLimpiadas = true;
+  } else {
+    console.warn("[HikCentral] Se conservaron asignaciones anteriores porque hubo personas sin coincidencia:", personasSinCoincidencia);
+  }
 
   // Conserva una fotografía diaria de la información que normalmente se revisa en el Excel.
   // Si se vuelve a sincronizar el mismo día, se actualiza esa fotografía sin crear duplicados.
@@ -365,6 +376,8 @@ export async function sincronizarNivelesYAsignacionesHik() {
     asignacionesSincronizadas: asignaciones.length,
     personasConsultadas,
     personasSinCoincidencia,
+    asignacionesAntiguasLimpiadas,
+    advertencias: personasSinCoincidencia > 0 ? ["Se conservaron asignaciones anteriores: " + personasSinCoincidencia + " personas de HikCentral no se pudieron relacionar con estudiantes."] : [],
     referenciasHorarioHikCentral: filasHorarios.length,
     horariosDetectadosDesdeNombreDescripcion: listaNiveles.filter(n => n.hora_salida).length
   };
