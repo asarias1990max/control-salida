@@ -501,86 +501,84 @@
       }
     }
 
+    let resumenDiarioSalidasData = [];
+    let indicadoresDiariosData = [];
+
+    function filtrarResumenDiarioSalidasHik(key) {
+      const filtro = document.getElementById("dsFiltroIndicador");
+      if (filtro && typeof key === "string") filtro.value = key;
+      const seleccionado = filtro?.value || "";
+      const cuerpo = document.getElementById("dsTablaResumenDiario");
+      if (!cuerpo) return;
+      const rows = seleccionado
+        ? resumenDiarioSalidasData.filter(row => row.flags && row.flags[seleccionado])
+        : resumenDiarioSalidasData;
+      cuerpo.replaceChildren();
+      if (!rows.length) {
+        cuerpo.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-3">No hay estudiantes para este indicador.</td></tr>';
+        return;
+      }
+      rows.forEach(row => {
+        const tr = document.createElement("tr");
+        const nivel = (row.niveles || []).join(", ") || "Sin nivel asignado";
+        const config = row.configuracion || {};
+        const valores = [
+          row.apellidos || "", row.nombres || "", row.codigo || row.codigo_hik || "—",
+          row.seccion || "—", row.curso || "—", row.paralelo || "—",
+          [row.hora_entrada || "—", row.puerta_entrada || ""].filter(Boolean).join(" · "),
+          [row.hora_salida || "—", row.puerta_salida || ""].filter(Boolean).join(" · "),
+          nivel, config.horario || "Por verificar", config.puertas || "Por verificar",
+          [row.resultado_entrada ? "Entrada: " + row.resultado_entrada : "", row.resultado_salida ? "Salida: " + row.resultado_salida : ""].filter(Boolean).join(" | ") || "Sin eventos"
+        ];
+        valores.forEach(value => { const td=document.createElement("td"); td.textContent=String(value); tr.append(td); });
+        cuerpo.append(tr);
+      });
+    }
+
     async function cargarResumenDiarioSalidasHik() {
       const cuerpo = document.getElementById("dsTablaResumenDiario");
       const estado = document.getElementById("dsResumenEstado");
       const indicadores = document.getElementById("dsResumenIndicadores");
+      const filtro = document.getElementById("dsFiltroIndicador");
       const fecha = document.getElementById("dsFechaResumen")?.value || "";
       if (!cuerpo || !estado || !indicadores) return;
-      if (!fecha) {
-        estado.textContent = "Selecciona una fecha para generar el control.";
-        return;
-      }
+      if (!fecha) { estado.textContent = "Selecciona una fecha para generar el control."; return; }
       estado.className = "small text-muted mb-2";
-      estado.textContent = "Calculando el control diario desde el histórico de Supabase...";
-      cuerpo.innerHTML = '<tr><td colspan="8" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
+      estado.textContent = "Calculando indicadores según la puerta utilizada y el resultado del evento...";
+      cuerpo.innerHTML = '<tr><td colspan="12" class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Calculando...</td></tr>';
       try {
         const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha), { headers: { Accept: "application/json" } });
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo generar el control diario.");
-        const rows = Array.isArray(result.data) ? result.data : [];
-        indicadores.innerHTML = "";
-        [
-          ["Estudiantes activos", result.totalEstudiantes || 0],
-          ["Salidas registradas", result.conSalida || 0],
-          ["Novedades", result.novedades || 0],
-          ["Sin nivel sincronizado", result.sinNivel || 0]
-        ].forEach(([label, value]) => {
-          const col = document.createElement("div");
-          col.className = "col-6 col-lg-3";
-          const card = document.createElement("div");
-          card.className = "border rounded p-3 h-100";
-          const titulo = document.createElement("div");
-          titulo.className = "small text-muted";
-          titulo.textContent = label;
-          const numero = document.createElement("div");
-          numero.className = "fs-4 fw-semibold";
-          numero.textContent = String(value);
-          card.append(titulo, numero);
-          col.append(card);
-          indicadores.append(col);
-        });
-        cuerpo.replaceChildren();
-        if (!rows.length) {
-          cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No hay estudiantes para esta fecha.</td></tr>';
-        } else {
-          rows.forEach(row => {
-            const tr = document.createElement("tr");
-            const valores = [
-              row.estudiante || "Sin nombre",
-              row.codigo || row.codigo_hik || "—",
-              [row.curso, row.paralelo ? "Paralelo " + row.paralelo : ""].filter(Boolean).join(" · ") || "—",
-              (row.niveles || []).join(", ") || "Sin nivel asignado",
-              row.hora_esperada || "Por verificar",
-              row.hora_real_salida || "—",
-              row.puerta_salida || "—"
-            ];
-            valores.forEach(valor => {
-              const td = document.createElement("td");
-              td.textContent = String(valor);
-              tr.append(td);
-            });
-            const tdEstado = document.createElement("td");
-            const badge = document.createElement("span");
-            const estadoFila = String(row.estado || "Por verificar");
-            badge.className = "badge " + (
-              estadoFila === "Salida registrada en horario" ? "text-bg-success" :
-              estadoFila === "Pendiente de salida" ? "text-bg-secondary" :
-              estadoFila === "Nivel de acceso no sincronizado" || estadoFila === "Horario por verificar" ? "text-bg-warning" :
-              "text-bg-danger"
-            );
-            badge.textContent = estadoFila;
-            tdEstado.append(badge);
-            tr.append(tdEstado);
-            cuerpo.append(tr);
+        resumenDiarioSalidasData = Array.isArray(result.data) ? result.data : [];
+        indicadoresDiariosData = Array.isArray(result.indicadores) ? result.indicadores : [];
+        indicadores.replaceChildren();
+        indicadoresDiariosData.forEach(item => {
+          const tr=document.createElement("tr");
+          [item.indicador, item.estudiantes, item.total, Number(item.porcentaje).toFixed(2)+"%"].forEach(value => {
+            const td=document.createElement("td"); td.textContent=String(value); tr.append(td);
           });
+          const td=document.createElement("td");
+          const button=document.createElement("button");
+          button.type="button"; button.className="btn btn-sm btn-outline-primary";
+          button.textContent="Ver estudiantes";
+          button.addEventListener("click",()=>filtrarResumenDiarioSalidasHik(item.key));
+          td.append(button); tr.append(td); indicadores.append(tr);
+        });
+        if (filtro) {
+          const previous = filtro.value;
+          filtro.replaceChildren(new Option("Todos los estudiantes", ""));
+          indicadoresDiariosData.forEach(item => filtro.add(new Option(item.indicador, item.key)));
+          filtro.value = indicadoresDiariosData.some(item => item.key === previous) ? previous : "";
         }
-        estado.textContent = "Control del " + result.fecha + ": " + (result.totalEstudiantes || 0) + " estudiantes. Los horarios de la configuración escolar son ventanas de control; cuando HikCentral entregue una hora exacta se mostrará por separado.";
+        filtrarResumenDiarioSalidasHik();
+        estado.textContent = "Control del " + result.fecha + ": " + result.totalEstudiantes + " estudiantes activos. Entrada se identifica por puertas CE y salida por puertas CS; concedido/error se determina por el resultado registrado en HikCentral.";
       } catch (error) {
-        cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-3"></td></tr>';
+        indicadores.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3"></td></tr>';
+        indicadores.querySelector("td").textContent = error.message || "Error calculando indicadores.";
+        cuerpo.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-3"></td></tr>';
         cuerpo.querySelector("td").textContent = error.message || "Error calculando el control diario.";
-        estado.className = "small text-danger mb-2";
-        estado.textContent = error.message || "Error calculando el control diario.";
+        estado.className = "small text-danger mb-2"; estado.textContent = error.message || "Error calculando el control diario.";
       }
     }
 
