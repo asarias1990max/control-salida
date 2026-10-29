@@ -15,83 +15,158 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
-    :root { --login-blue: #2449a5; --login-ink: #17243b; --login-line: #e6ebf2; }
+    :root {
+      --login-blue: #2454c6;
+      --login-blue-dark: #173d9b;
+      --login-ink: #17243b;
+      --login-muted: #66748a;
+      --login-line: #d8e0ec;
+    }
+    * { box-sizing: border-box; }
     body {
-      min-height: 100vh; margin: 0; padding: 24px;
-      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 28px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       color: var(--login-ink);
-      background: radial-gradient(circle at 12% 12%, rgba(255,255,255,.16), transparent 28%),
-                  linear-gradient(135deg, #172b5e 0%, #2449a5 58%, #7f9de3 100%);
+      background:
+        linear-gradient(90deg, rgba(12, 26, 54, .18), rgba(12, 26, 54, .06)),
+        url("/Fondo.jpg") center center / cover no-repeat fixed,
+        linear-gradient(135deg, #1d376d 0%, #8ca9dc 100%);
+      position: relative;
+      isolation: isolate;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(13, 27, 52, .03), rgba(13, 27, 52, .16));
+      z-index: -1;
+      pointer-events: none;
     }
     .login-card {
-      width: 100%; max-width: 410px; padding: 34px;
-      border: 1px solid rgba(255,255,255,.75); border-radius: 22px;
-      background: rgba(255,255,255,.98);
-      box-shadow: 0 24px 70px rgba(10,25,61,.28);
+      width: min(100%, 445px);
+      padding: 28px 26px 24px;
+      border: 1px solid rgba(255,255,255,.78);
+      border-radius: 16px;
+      background: rgba(255,255,255,.82);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 60px rgba(12, 25, 51, .22);
+      text-align: center;
     }
-    .logo { font-size: 42px; color: var(--login-blue); }
-    .title { font-weight: 750; letter-spacing: -.025em; color: var(--login-ink); }
+    .login-brand { margin-bottom: 24px; }
+    .login-brand-mark {
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 54px;
+      line-height: 1;
+      letter-spacing: -8px;
+      color: #172b49;
+      padding-right: 8px;
+    }
+    .login-brand-mark .brand-c {
+      color: #c92536;
+      font-weight: 500;
+      transform: scaleX(1.05);
+      display: inline-block;
+    }
+    .login-brand-name {
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .25em;
+      color: #203653;
+    }
+    .login-welcome {
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -.035em;
+      margin-bottom: 4px;
+      color: #14243c;
+    }
+    .login-subtitle {
+      color: #5f6f84;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 22px;
+    }
+    .login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: #59677b; }
+    .login-divider hr { flex: 1; border-color: #b9c4d4; opacity: .65; margin: 0; }
     .login-card .form-control {
-      min-height: 46px; border: 1px solid #dce4ef; border-radius: 11px;
+      min-height: 46px;
+      border: 1px solid var(--login-line);
+      border-radius: 9px;
+      background: rgba(255,255,255,.95);
+      font-size: 14px;
+      box-shadow: 0 1px 2px rgba(20, 38, 67, .04);
     }
     .login-card .form-control:focus {
-      border-color: #8da9e8; box-shadow: 0 0 0 .2rem rgba(36,73,165,.12);
+      border-color: #8da9e8;
+      box-shadow: 0 0 0 .2rem rgba(36,84,198,.12);
     }
     .login-card .btn-primary {
-      min-height: 45px; color: #fff; background: var(--login-blue);
-      border: 0; border-radius: 11px; font-weight: 650;
-      box-shadow: 0 6px 14px rgba(36,73,165,.18); transition: .18s ease;
+      min-height: 46px;
+      color: #fff;
+      background: linear-gradient(105deg, var(--login-blue), var(--login-blue-dark));
+      border: 0;
+      border-radius: 9px;
+      font-weight: 700;
+      box-shadow: 0 6px 14px rgba(36,73,165,.2);
+      transition: .18s ease;
     }
-    .login-card .btn-primary:hover { background: #1d3679; transform: translateY(-1px); }
+    .login-card .btn-primary:hover { filter: brightness(.96); transform: translateY(-1px); }
     #googleSignInButton { display:flex; justify-content:center; min-height:44px; }
     #googleSignInButton > div { max-width:100%; }
-    .footer { font-size: 12px; color: #718096; }
-    @media (max-width: 480px) { .login-card { padding: 26px 22px; border-radius: 18px; } }
+    #googleStatus { font-size: 12px; }
+    .login-footer { margin-top: 18px; font-size: 11px; color: #718096; }
+    @media (max-width: 480px) {
+      body { padding: 16px 12px; background-attachment: scroll; }
+      .login-card { padding: 25px 20px 22px; }
+      .login-welcome { font-size: 24px; }
+    }
   </style>
 </head>
 
 <body>
+  <main class="login-card">
+    <header class="login-brand">
+      <div class="login-brand-mark" aria-label="Colegio Einstein"><span class="brand-c">C</span><span>E</span></div>
+      <div class="login-brand-name">COLEGIO EINSTEIN</div>
+    </header>
 
-  <div class="login-card text-center">
+    <h1 class="login-welcome">Bienvenido</h1>
+    <p class="login-subtitle">Accede al sistema de control de entradas y salidas</p>
 
-    <!-- ICONO -->
-    <div class="mb-3">
-      <i class="bi bi-shield-lock-fill logo"></i>
-    </div>
-
-    <h4 class="title mb-4">Control de Salida</h4>
-
-    <!-- INPUTS (SIN CAMBIAR IDs) -->
-    <input type="text" id="user" class="form-control mb-3" placeholder="Usuario">
-
-    <input type="password" id="pass" class="form-control mb-4" placeholder="Contraseña">
-
-    <!-- BOTÓN (MISMA FUNCIÓN) -->
-    <button onclick="login()" class="btn btn-primary w-100 mb-3">
-      <i class="bi bi-box-arrow-in-right"></i> Ingresar
-    </button>
-
-    <!-- DIVISOR -->
-    <div class="d-flex align-items-center mb-3">
-      <hr class="flex-fill">
-      <span class="px-2 text-muted small">o</span>
-      <hr class="flex-fill">
-    </div>
-
-    <!-- BOTÓN GOOGLE -->
     <div id="googleSignInButton" class="w-100 mb-2"></div>
-    <div id="googleStatus" class="text-muted small mb-4">Preparando acceso con Google...</div>
+    <div id="googleStatus" class="text-muted small mb-3">Preparando acceso con Google...</div>
 
-    <div class="mt-4 footer">
-      © 2026 Sistema Institucional
-    </div>
+    <div class="login-divider"><hr><span class="small">o</span><hr></div>
 
-  </div>
+    <form onsubmit="event.preventDefault(); login();">
+      <div class="input-group mb-3">
+        <span class="input-group-text bg-white" style="border-color:var(--login-line);border-radius:9px 0 0 9px"><i class="bi bi-person"></i></span>
+        <input type="text" id="user" class="form-control" placeholder="Usuario o correo" aria-label="Usuario o correo" autocomplete="username" style="border-radius:0 9px 9px 0">
+      </div>
+      <div class="input-group mb-3">
+        <span class="input-group-text bg-white" style="border-color:var(--login-line);border-radius:9px 0 0 9px"><i class="bi bi-lock"></i></span>
+        <input type="password" id="pass" class="form-control" placeholder="Contraseña" aria-label="Contraseña" autocomplete="current-password" style="border-radius:0 9px 9px 0">
+        <button class="btn btn-outline-secondary" type="button" aria-label="Mostrar u ocultar contraseña" onclick="const p=document.getElementById('pass');p.type=p.type==='password'?'text':'password';" style="border-color:var(--login-line);border-radius:0 9px 9px 0;margin-left:-1px"><i class="bi bi-eye"></i></button>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 mt-2">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar sesión
+      </button>
+    </form>
 
-  <!-- TU JS ORIGINAL -->
-  <script src="js/login.js">
-  </script>
+    <div class="login-footer">© 2026 Sistema Institucional · Colegio Einstein</div>
+  </main>
 
+  <script src="js/login.js"></script>
 </body>
 </html>
