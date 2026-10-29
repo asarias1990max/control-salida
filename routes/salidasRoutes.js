@@ -159,8 +159,10 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         entrada_y_salida: entradasConcedidas.length > 0 && salidasConcedidas.length > 0,
         // No marcar a todos como ausentes si la sincronización aún no ha cargado eventos.
         ausente: Boolean(sincronizacionEventos) && hayEventosSincronizados && !sincronizandoEventos && !(sincronizacionEventos?.advertencias?.length) && entradas.length === 0 && salidas.length === 0,
-        error_entrada: entradasError.length > 0,
-        error_salida: salidasError.length > 0,
+        // Si existe un acceso concedido en esa dirección, no clasificar al estudiante
+        // como "con error" solo por intentos fallidos anteriores o duplicados.
+        error_entrada: entradasError.length > 0 && entradasConcedidas.length === 0,
+        error_salida: salidasError.length > 0 && salidasConcedidas.length === 0,
         fuera_horario: salidasFueraHorario.length > 0,
         entrada_sin_salida: entradasConcedidas.length > 0 && salidasConcedidas.length === 0,
         salida_sin_entrada: salidasConcedidas.length > 0 && entradasConcedidas.length === 0,
