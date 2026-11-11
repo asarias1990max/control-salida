@@ -328,6 +328,7 @@
     }
 
     const esSoloDashboardSalidas = usuario.rol === "dashboard_salidas";
+    const esAdministrador = usuario.rol === "admin";
     const permisos = usuario.permisos_menu || [];
     const menu = document.getElementById("menuOpciones");
     if (esSoloDashboardSalidas) {
@@ -476,7 +477,7 @@
             salida_high: "Salida High School",
             importar_data: "Importar Data",
             reporte_salidas: "Reporte de Salidas",
-            dashboard_salidas: "Dashboard de Salidas"
+            dashboard_salidas: "Dashboard de Salidas",\n            usuarios: "Usuarios y permisos"
           };
 
           document.getElementById("tituloSeccion").innerText = titulos[vista] || "Dashboard";
