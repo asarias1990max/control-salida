@@ -510,6 +510,7 @@
     let eventosFiltradosDashboardHik = [];
 
     async function inicializarDashboardSalidas() {
+      if (esSoloDashboardSalidas) document.getElementById("dsBtnSincronizarNiveles")?.remove();
       const fechaResumen = document.getElementById("dsFechaResumen");
       const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
       if (fechaResumen && !fechaResumen.value) fechaResumen.value = hoy;
