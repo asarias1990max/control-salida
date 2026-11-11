@@ -208,7 +208,7 @@
     <div class="sidebar-brand"><span class="sidebar-brand-icon"><i class="bi bi-shield-lock"></i></span><h4 class="sidebar-brand-text mb-0">Sistema</h4></div>
     <hr>
 
-    <a href="#" title="Inicio" onclick="mostrarInicio()"><i class="bi bi-house"></i><span class="sidebar-link-text">Inicio</span></a>
+    <a id="menuInicio" href="#" title="Inicio" onclick="mostrarInicio()"><i class="bi bi-house"></i><span class="sidebar-link-text">Inicio</span></a>
 
     <div id="menuOpciones"></div>
 
@@ -327,8 +327,13 @@
       }
     }
 
+    const esSoloDashboardSalidas = usuario.rol === "dashboard_salidas";
     const permisos = usuario.permisos_menu || [];
     const menu = document.getElementById("menuOpciones");
+    if (esSoloDashboardSalidas) {
+      document.getElementById("menuInicio")?.remove();
+      document.getElementById("inicio")?.remove();
+    }
 
     const opciones = [
       {
@@ -442,6 +447,7 @@
     }
 
     function mostrarInicio() {
+      if (esSoloDashboardSalidas) return cargarVista("dashboard_salidas");
       cerrarMenuMovil();
       ocultarSecciones();
       document.getElementById("inicio").style.display = "block";
@@ -450,6 +456,9 @@
     }
 
     function cargarVista(vista) {
+      if (esSoloDashboardSalidas && vista !== "dashboard_salidas") {
+        return cargarVista("dashboard_salidas");
+      }
       cerrarMenuMovil();
       ocultarSecciones();
 
@@ -490,6 +499,10 @@
           document.getElementById("contenidoDinamico").innerHTML =
             `<div class="alert alert-danger">Error cargando módulo</div>`;
         });
+    }
+
+    if (esSoloDashboardSalidas) {
+      cargarVista("dashboard_salidas");
     }
 
     let eventosDashboardHik = [];
