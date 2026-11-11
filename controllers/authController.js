@@ -1,4 +1,11 @@
 import { getUserByCredentials, getUserByGoogleId, createOrUpdateGoogleUser } from "../models/userModel.js";
+import { crearSesion } from "../services/sessionService.js";
+
+function usuarioPublico(usuario) {
+  if (!usuario) return null;
+  const { password, ...datos } = usuario;
+  return datos;
+}
 
 export async function login(req, res) {
 
@@ -13,10 +20,13 @@ export async function login(req, res) {
     });
   }
 
+  const usuarioSeguro = usuarioPublico(usuario);
+  crearSesion(res, usuarioSeguro);
+
   return res.json({
     ok: true,
     message: "Login correcto",
-    user: usuario
+    user: usuarioSeguro
   });
 }
 
@@ -44,12 +54,13 @@ export async function googleLogin(req, res) {
       avatar
     });
 
-    console.log('User created/updated:', usuario);
+    const usuarioSeguro = usuarioPublico(usuario);
+    crearSesion(res, usuarioSeguro);
 
     return res.json({
       ok: true,
       message: "Login con Google correcto",
-      user: usuario
+      user: usuarioSeguro
     });
 
   } catch (error) {
