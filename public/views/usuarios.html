@@ -1,0 +1,52 @@
+<div class="card p-3 p-md-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><h4 class="fw-bold mb-1"><i class="bi bi-people"></i> Usuarios y permisos</h4><small class="text-muted">Autoriza quién puede ingresar y qué módulos puede utilizar.</small></div>
+    <button class="btn btn-primary" onclick="abrirFormularioUsuario()"><i class="bi bi-person-plus me-1"></i> Nuevo usuario</button>
+  </div>
+  <div class="row g-2 mb-3">
+    <div class="col-md-8"><input id="usuariosBuscar" class="form-control" placeholder="Buscar por nombre o correo..." oninput="filtrarUsuarios()"></div>
+    <div class="col-md-4"><select id="usuariosEstadoFiltro" class="form-select" onchange="filtrarUsuarios()"><option value="">Todos los estados</option><option value="activo">Activos</option><option value="inactivo">Inactivos</option></select></div>
+  </div>
+  <div id="usuariosMensaje" class="mb-3"></div>
+  <div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Usuario</th><th>Perfil</th><th>Permisos</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+    <tbody id="usuariosTabla"><tr><td colspan="5" class="text-center text-muted py-4">Cargando usuarios...</td></tr></tbody>
+  </table></div>
+</div>
+<div class="modal fade" id="modalUsuario" tabindex="-1" aria-hidden="true">
+ <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><div><h5 class="modal-title fw-bold" id="usuarioModalTitulo">Nuevo usuario</h5><small class="text-muted">El usuario ingresará con su cuenta institucional de Google.</small></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+   <input type="hidden" id="usuarioId">
+   <div class="row g-3">
+    <div class="col-md-6"><label class="form-label fw-semibold">Nombre completo</label><input id="usuarioNombre" class="form-control" maxlength="120" placeholder="Nombre y apellido"></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">Correo institucional</label><input id="usuarioEmail" type="email" class="form-control" placeholder="usuario@einstein.k12.ec"></div>
+    <div class="col-12"><label class="form-label fw-semibold">Perfil de acceso</label><select id="usuarioRol" class="form-select" onchange="cambiarPerfilUsuario()"><option value="admin">Administrador</option><option value="dashboard_salidas">Dashboard de Salidas</option><option value="operador_salidas">Operador de Salidas</option><option value="personalizado">Personalizado</option></select></div>
+    <div class="col-12" id="usuarioPermisosWrap"><label class="form-label fw-semibold mb-2">Permisos de módulos</label><div class="row g-2" id="usuarioPermisos">
+      <div class="col-md-6"><label class="form-check border rounded-3 p-3 ps-5"><input class="form-check-input" type="checkbox" value="salida_lower"> Salida Lower School</label></div>
+      <div class="col-md-6"><label class="form-check border rounded-3 p-3 ps-5"><input class="form-check-input" type="checkbox" value="salida_middle"> Salida Middle School</label></div>
+      <div class="col-md-6"><label class="form-check border rounded-3 p-3 ps-5"><input class="form-check-input" type="checkbox" value="salida_high"> Salida High School</label></div>
+      <div class="col-md-6"><label class="form-check border rounded-3 p-3 ps-5"><input class="form-check-input" type="checkbox" value="importar_data"> Importar Data</label></div>
+      <div class="col-md-6"><label class="form-check border rounded-3 p-3 ps-5"><input class="form-check-input" type="checkbox" value="reporte_salidas"> Reporte de Salidas</label></div>
+      <div class="col-md-6"><label class="form-check border rounded-3 p-3 ps-5"><input class="form-check-input" type="checkbox" value="dashboard_salidas"> Dashboard de Salidas</label></div>
+    </div><small class="text-muted">Los perfiles predefinidos asignan sus permisos automáticamente.</small></div>
+   </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" id="usuarioGuardar" onclick="guardarUsuario()"><i class="bi bi-check-lg me-1"></i> Guardar usuario</button></div>
+ </div></div>
+</div>
+<script>
+let listaUsuariosSistema = [];
+const permisosUsuariosEtiquetas = {salida_lower:"Salida Lower",salida_middle:"Salida Middle",salida_high:"Salida High",importar_data:"Importar Data",reporte_salidas:"Reporte de Salidas",dashboard_salidas:"Dashboard de Salidas"};
+const perfilesUsuariosEtiquetas = {admin:"Administrador",dashboard_salidas:"Dashboard de Salidas",operador_salidas:"Operador de Salidas",personalizado:"Personalizado"};
+async function cargarUsuariosSistema(){const body=document.getElementById("usuariosTabla");try{const r=await fetch("/api/usuarios");const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"No se pudo cargar usuarios.");listaUsuariosSistema=d.data||[];filtrarUsuarios();}catch(e){body.innerHTML='<tr><td colspan="5" class="text-danger text-center py-4">'+escapeHtmlUsuarios(e.message)+'</td></tr>';}}
+function escapeHtmlUsuarios(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function filtrarUsuarios(){const q=(document.getElementById("usuariosBuscar")?.value||"").toLowerCase();const estado=document.getElementById("usuariosEstadoFiltro")?.value||"";const rows=listaUsuariosSistema.filter(u=>(!estado||u.estado===estado)&&((u.nombre+" "+u.email).toLowerCase().includes(q)));const body=document.getElementById("usuariosTabla");if(!body)return;if(!rows.length){body.innerHTML='<tr><td colspan="5" class="text-center text-muted py-4">No hay usuarios que coincidan.</td></tr>';return;}body.innerHTML=rows.map(u=>{const perms=(u.permisos_menu||[]).map(p=>permisosUsuariosEtiquetas[p]).filter(Boolean);return '<tr><td><div class="fw-semibold">'+escapeHtmlUsuarios(u.nombre)+'</div><small class="text-muted">'+escapeHtmlUsuarios(u.email)+'</small></td><td>'+escapeHtmlUsuarios(perfilesUsuariosEtiquetas[u.rol]||u.rol)+'</td><td><small>'+escapeHtmlUsuarios(perms.join(", ")||"Sin permisos")+'</small></td><td><span class="badge '+(u.estado==="activo"?"bg-success-subtle text-success":"bg-secondary-subtle text-secondary")+'">'+(u.estado==="activo"?"Activo":"Inactivo")+'</span></td><td class="text-end text-nowrap"><button class="btn btn-sm btn-outline-primary me-1" title="Editar" onclick="editarUsuarioSistema(\''+u.id+'\')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm '+(u.estado==="activo"?"btn-outline-danger":"btn-outline-success")+'" title="'+(u.estado==="activo"?"Desactivar":"Activar")+'" onclick="alternarEstadoUsuario(\''+u.id+'\',\''+(u.estado==="activo"?"inactivo":"activo")+'\')"><i class="bi '+(u.estado==="activo"?"bi-person-slash":"bi-person-check")+'"></i></button></td></tr>';}).join("");}
+function abrirFormularioUsuario(u=null){document.getElementById("usuarioId").value=u?.id||"";document.getElementById("usuarioNombre").value=u?.nombre||"";document.getElementById("usuarioEmail").value=u?.email||"";document.getElementById("usuarioEmail").disabled=!!u;document.getElementById("usuarioRol").value=u?.rol||"dashboard_salidas";document.querySelectorAll("#usuarioPermisos input").forEach(c=>c.checked=(u?.permisos_menu||[]).includes(c.value));document.getElementById("usuarioModalTitulo").textContent=u?"Editar usuario":"Nuevo usuario";cambiarPerfilUsuario();bootstrap.Modal.getOrCreateInstance(document.getElementById("modalUsuario")).show();}
+function editarUsuarioSistema(id){const u=listaUsuariosSistema.find(x=>x.id===id);if(u)abrirFormularioUsuario(u);}
+function cambiarPerfilUsuario(){const rol=document.getElementById("usuarioRol").value;const wrap=document.getElementById("usuarioPermisosWrap");const checks=[...document.querySelectorAll("#usuarioPermisos input")];const presets={admin:["salida_lower","salida_middle","salida_high","importar_data","reporte_salidas","dashboard_salidas"],dashboard_salidas:["dashboard_salidas"],operador_salidas:["salida_lower","salida_middle","salida_high"]};if(rol==="personalizado"){wrap.style.display="block";checks.forEach(c=>c.disabled=false);return;}wrap.style.display="block";checks.forEach(c=>{c.checked=(presets[rol]||[]).includes(c.value);c.disabled=true;});}
+async function guardarUsuario(){const id=document.getElementById("usuarioId").value;const rol=document.getElementById("usuarioRol").value;const permisos=[...document.querySelectorAll("#usuarioPermisos input:checked")].map(c=>c.value);const payload={nombre:document.getElementById("usuarioNombre").value,email:document.getElementById("usuarioEmail").value,rol,permisos_menu:permisos};const btn=document.getElementById("usuarioGuardar");btn.disabled=true;try{const r=await fetch(id?"/api/usuarios/"+id:"/api/usuarios",{method:id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"No se pudo guardar.");bootstrap.Modal.getInstance(document.getElementById("modalUsuario")).hide();mostrarMensajeUsuarios("Usuario guardado correctamente.","success");await cargarUsuariosSistema();}catch(e){mostrarMensajeUsuarios(e.message,"danger");}finally{btn.disabled=false;}}
+async function alternarEstadoUsuario(id,estado){const u=listaUsuariosSistema.find(x=>x.id===id);if(!u)return;if(!confirm((estado==="inactivo"?"¿Desactivar":"¿Activar")+" el acceso de "+u.nombre+"?"))return;try{const r=await fetch("/api/usuarios/"+id+"/estado",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({estado})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"No se pudo cambiar el estado.");mostrarMensajeUsuarios("Estado actualizado correctamente.","success");await cargarUsuariosSistema();}catch(e){mostrarMensajeUsuarios(e.message,"danger");}}
+function mostrarMensajeUsuarios(msg,tipo){const el=document.getElementById("usuariosMensaje");if(el)el.innerHTML='<div class="alert alert-'+tipo+' py-2 mb-0">'+escapeHtmlUsuarios(msg)+'</div>';}
+cargarUsuariosSistema();
+</script>
