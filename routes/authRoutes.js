@@ -1,6 +1,6 @@
 import express from "express";
 import { login, googleLogin, getGoogleConfig } from "../controllers/authController.js";
-import { exigirSesion, renovarSesionActual, cerrarSesion } from "../services/sessionService.js";
+import { exigirSesion, registrarActividad, renovarSesionActual, cerrarSesion } from "../services/sessionService.js";
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.get("/auth/session", (req, res) => {
 });
 
 // Mantener viva la sesión únicamente cuando el usuario sigue interactuando.
-router.post("/auth/activity", exigirSesion, (req, res) => {
+router.post("/auth/activity", registrarActividad, (req, res) => {
   return res.json({ ok: true });
 });
 
