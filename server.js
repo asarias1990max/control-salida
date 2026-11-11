@@ -39,6 +39,28 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api", authRoutes);
 // Todas las APIs de la aplicación requieren una sesión válida, salvo las rutas públicas de auth.
 app.use("/api", exigirSesion);
+
+// Cuenta de consulta: únicamente puede consumir los endpoints de lectura del Dashboard de Salidas.
+app.use("/api", (req, res, next) => {
+  if (req.usuarioSesion?.rol !== "dashboard_salidas") return next();
+
+  const rutasPermitidas = new Set([
+    "GET /api/salidas/dashboard-resumen-diario",
+    "GET /api/salidas/dashboard-historial",
+    "GET /api/salidas/dashboard-niveles-estudiantes",
+    "GET /api/salidas/dashboard-configuracion",
+    "GET /api/salidas/dashboard-puertas",
+    "GET /api/salidas/dashboard-eventos"
+  ]);
+  const ruta = req.path.replace(/\\/+$/, "") || "/";
+  if (rutasPermitidas.has(req.method + " " + ruta)) return next();
+
+  return res.status(403).json({
+    ok: false,
+    message: "Tu cuenta solo tiene acceso al Dashboard de Salidas."
+  });
+});
+
 app.use("/api/importaciones", importacionesRoutes);
 app.use("/api/estudiantes", estudiantesRoutes);
 app.use("/api/salidas", salidasRoutes);
