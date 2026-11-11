@@ -45,8 +45,8 @@ app.use("/api", (req, res, next) => {
   if (!usuario) return next();
   const permisos = Array.isArray(usuario.permisos_menu) ? usuario.permisos_menu : [];
   const ruta = req.path.replace(/\/+$/, "") || "/";
-  if (ruta.startsWith("/usuarios") && usuario.rol !== "admin") {
-    return res.status(403).json({ ok: false, message: "Solo un administrador puede administrar usuarios." });
+  if (ruta.startsWith("/usuarios") && usuario.email?.toLowerCase() !== "asarias@einstein.k12.ec" && !permisos.includes("usuarios")) {
+    return res.status(403).json({ ok: false, message: "No tienes el permiso Usuarios y permisos." });
   }
   if (usuario.rol === "admin") return next();
   if (usuario.rol === "dashboard_salidas") {
