@@ -16,7 +16,7 @@ export async function login(req, res) {
   if (!usuario) {
     return res.json({
       ok: false,
-      message: "Credenciales incorrectas"
+      message: "Credenciales incorrectas o cuenta desactivada."
     });
   }
 
@@ -58,7 +58,6 @@ export async function googleLogin(req, res) {
     const email = String(claims.email).trim().toLowerCase();
     const nombre = claims.name;
     const avatar = claims.picture || "";
-    const esUsuarioDashboardSalidas = email === "fsaltos@einstein.k12.ec";
 
     console.log("Google login attempt:", { google_id, email, nombre });
 
@@ -78,10 +77,10 @@ export async function googleLogin(req, res) {
     });
 
     const usuarioSeguro = usuarioPublico(usuario);
-    if (esUsuarioDashboardSalidas) {
-      usuarioSeguro.rol = "dashboard_salidas";
-      usuarioSeguro.permisos_menu = ["dashboard_salidas"];
+    if (!usuario) {
+      return res.status(403).json({ ok: false, message: "Tu correo institucional todavía no está autorizado para ingresar. Solicita acceso al administrador del sistema." });
     }
+
     crearSesion(res, usuarioSeguro);
 
     return res.json({
