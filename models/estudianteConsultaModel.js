@@ -61,7 +61,7 @@ export async function getParalelosPorCurso(curso) {
     .from("estudiantes")
     .select("paralelo")
     .eq("curso", curso)
-    .eq("estado", true)
+    .eq("estado", "A")
     .order("paralelo", { ascending: true });
 
   if (error) {
@@ -81,7 +81,7 @@ export async function getEstudiantesPorCursoParalelo(curso, paralelo) {
     .from("estudiantes")
     .select("id, codigo, codigo_hik, apellidos, nombres, seccion, curso, paralelo")
     .eq("curso", curso)
-    .eq("estado", true)
+    .eq("estado", "A")
     .order("apellidos", { ascending: true });
 
   if (paralelo) {
@@ -104,7 +104,7 @@ export async function getTotalEstudiantes() {
   const { count, error } = await supabase
     .from("estudiantes")
     .select("*", { count: "exact", head: true })
-    .eq("estado", true);
+    .eq("estado", "A");
 
   if (error) {
     throw error;
