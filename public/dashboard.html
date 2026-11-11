@@ -500,7 +500,7 @@
           if (vista === "dashboard_salidas") {
             inicializarDashboardSalidas();
           }
-          if (vista === "usuarios" && esAdministrador) {
+          if (vista === "usuarios" && (esAdministrador || permisos.includes("usuarios"))) {
             cargarUsuariosSistema();
           }
         })
