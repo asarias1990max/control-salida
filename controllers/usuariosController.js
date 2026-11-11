@@ -1,6 +1,8 @@
 import { supabase } from "../config/supabaseClient.js";
 
-const PERMISOS_VALIDOS = ["salida_lower", "salida_middle", "salida_high", "importar_data", "reporte_salidas", "dashboard_salidas"];
+const PERMISOS_VALIDOS = ["salida_lower", "salida_middle", "salida_high", "importar_data", "reporte_salidas", "dashboard_salidas", "usuarios"];
+const ADMIN_MAESTRO = "asarias@einstein.k12.ec";
+const esAdminMaestro = req => normalizarEmail(req.usuarioSesion?.email) === ADMIN_MAESTRO;
 const PERFILES = {
   admin: [...PERMISOS_VALIDOS, "usuarios"],
   dashboard_salidas: ["dashboard_salidas"],
@@ -38,6 +40,9 @@ export async function listarUsuarios(req, res) {
 export async function crearUsuario(req, res) {
   const validacion = validarDatos(req.body || {}, true);
   if (validacion.error) return res.status(400).json({ ok: false, message: validacion.error });
+  if (!esAdminMaestro(req) && (validacion.datos.rol === "admin" || validacion.datos.permisos_menu.includes("usuarios"))) {
+    return res.status(403).json({ ok: false, message: "Solo asarias@einstein.k12.ec puede conceder el permiso Usuarios y permisos o el perfil Administrador." });
+  }
   const { data: existente, error: errorBuscar } = await supabase.from("usuarios").select("id").eq("email", validacion.datos.email).maybeSingle();
   if (errorBuscar) return res.status(500).json({ ok: false, message: "No se pudo validar el correo." });
   if (existente) return res.status(409).json({ ok: false, message: "Ese correo ya está registrado." });
@@ -54,8 +59,13 @@ export async function actualizarUsuario(req, res) {
   const id = String(req.params.id || "");
   const validacion = validarDatos(req.body || {});
   if (validacion.error) return res.status(400).json({ ok: false, message: validacion.error });
-  const { data: actual, error: errorActual } = await supabase.from("usuarios").select("id,email").eq("id", id).maybeSingle();
+  const { data: actual, error: errorActual } = await supabase.from("usuarios").select("id,email,rol,permisos_menu").eq("id", id).maybeSingle();
   if (errorActual || !actual) return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
+  if (!esAdminMaestro(req)) {
+    if (validacion.datos.rol === "admin") return res.status(403).json({ ok: false, message: "Solo asarias@einstein.k12.ec puede asignar el perfil Administrador." });
+    const conservaGestionUsuarios = Array.isArray(actual.permisos_menu) && actual.permisos_menu.includes("usuarios");
+    validacion.datos.permisos_menu = [...new Set([...validacion.datos.permisos_menu.filter(p => p !== "usuarios"), ...(conservaGestionUsuarios ? ["usuarios"] : [])])];
+  }
   if (actual.email.toLowerCase() === normalizarEmail(req.usuarioSesion?.email) && validacion.datos.rol !== "admin") {
     return res.status(400).json({ ok: false, message: "No puedes quitarte tu propio perfil de administrador." });
   }
