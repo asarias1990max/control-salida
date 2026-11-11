@@ -1521,10 +1521,13 @@ async function cargarEstudiantesLower() {
             throw new Error(data.message || "Error al importar");
           }
 
+          const resumen = data.resultado || {};
           resultado.innerHTML = `
             <div class="alert alert-success border-0 shadow-sm">
-              <i class="bi bi-check-circle me-2"></i>
-              Importación finalizada correctamente.
+              <div class="fw-bold mb-2"><i class="bi bi-check-circle me-2"></i>Importación finalizada correctamente.</div>
+              <div class="small">Registros del CSV: <strong>${resumen.total_registros ?? 0}</strong></div>
+              <div class="small">Nuevos: <strong>${resumen.registros_insertados ?? 0}</strong> · Actualizados/reactivados: <strong>${resumen.registros_actualizados ?? 0}</strong></div>
+              <div class="small">Marcados como retirados (R): <strong>${resumen.registros_retirados ?? 0}</strong></div>
             </div>
           `;
 
