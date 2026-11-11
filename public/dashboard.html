@@ -453,7 +453,8 @@
       document.getElementById("contenidoDinamico").innerHTML = "";
     }
 
-    async function cargarDatosDashboard() {\n      const fechaDashboard = document.getElementById("dashboardFecha");\n      if (fechaDashboard) fechaDashboard.textContent = new Intl.DateTimeFormat("es-EC", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
+    async function cargarDatosDashboard() {
+      const fechaDashboard = document.getElementById("dashboardFecha");\n      if (fechaDashboard) fechaDashboard.textContent = new Intl.DateTimeFormat("es-EC", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
       try {
         // Cargar total estudiantes
         const resTotal = await fetch("/api/estudiantes/total");
