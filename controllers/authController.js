@@ -20,6 +20,10 @@ export async function login(req, res) {
     });
   }
 
+  if (String(usuario.email || "").trim().toLowerCase() === "fsaltos@einstein.k12.ec") {
+    return res.status(403).json({ ok: false, message: "Esta cuenta debe ingresar exclusivamente con Google." });
+  }
+
   const usuarioSeguro = usuarioPublico(usuario);
   crearSesion(res, usuarioSeguro);
 
