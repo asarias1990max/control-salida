@@ -2,6 +2,9 @@ import csv from "csv-parser";
 import { Readable } from "stream";
 import { supabase } from "../config/supabaseClient.js";
 
+const TAMANO_LOTE = 500;
+const CONCURRENCIA_ACTUALIZACIONES = 15;
+
 function normalizarTexto(valor) {
   return String(valor || "").trim();
 }
@@ -20,6 +23,12 @@ function leerCSV(buffer) {
       .on("end", () => resolve(registros))
       .on("error", reject);
   });
+}
+
+async function ejecutarEnLotes(items, tamano, ejecutar) {
+  for (let i = 0; i < items.length; i += tamano) {
+    await ejecutar(items.slice(i, i + tamano));
+  }
 }
 
 export async function procesarCSVEstudiantes(buffer) {
@@ -55,51 +64,76 @@ export async function procesarCSVEstudiantes(buffer) {
     });
   }
 
-  let registros_insertados = 0;
-  let registros_actualizados = 0;
-  let registros_error = 0;
-
-  // Primero actualiza o crea todos los registros incluidos en el CSV.
-  for (const estudiante of estudiantesCSV) {
-    const { data: existente, error: errorBuscar } = await supabase
+  // Lee el padrón existente en páginas para evitar una consulta individual por alumno.
+  const existentes = [];
+  for (let desde = 0; ; desde += TAMANO_LOTE) {
+    const { data, error } = await supabase
       .from("estudiantes")
-      .select("id")
-      .eq("codigo", estudiante.codigo)
-      .maybeSingle();
+      .select("id,codigo,estado")
+      .order("id", { ascending: true })
+      .range(desde, desde + TAMANO_LOTE - 1);
 
-    if (errorBuscar) throw new Error("No se pudo validar el código " + estudiante.codigo + ": " + errorBuscar.message);
+    if (error) throw new Error("No se pudo consultar el padrón de estudiantes: " + error.message);
+    existentes.push(...(data || []));
+    if (!data || data.length < TAMANO_LOTE) break;
+  }
 
+  const existentesPorCodigo = new Map(
+    existentes.map(estudiante => [normalizarCodigo(estudiante.codigo), estudiante])
+  );
+  const paraInsertar = [];
+  const paraActualizar = [];
+
+  for (const estudiante of estudiantesCSV) {
+    const existente = existentesPorCodigo.get(estudiante.codigo);
     if (existente) {
-      const { error } = await supabase.from("estudiantes").update(estudiante).eq("id", existente.id);
-      if (error) throw new Error("No se pudo actualizar el estudiante " + estudiante.codigo + ": " + error.message);
-      registros_actualizados++;
+      paraActualizar.push({ id: existente.id, ...estudiante });
     } else {
-      const { error } = await supabase.from("estudiantes").insert(estudiante);
-      if (error) throw new Error("No se pudo insertar el estudiante " + estudiante.codigo + ": " + error.message);
-      registros_insertados++;
+      paraInsertar.push(estudiante);
     }
   }
 
-  // Solo después de importar correctamente todas las filas, marca R a quienes ya no están en el CSV.
-  const { data: existentes, error: errorListado } = await supabase
-    .from("estudiantes")
-    .select("id,codigo")
-    .neq("estado", "R");
+  let registros_insertados = 0;
+  let registros_actualizados = 0;
+  let registros_retirados = 0;
+  let registros_error = 0;
 
-  if (errorListado) throw new Error("Los estudiantes fueron importados, pero no se pudo comparar el padrón para detectar retirados: " + errorListado.message);
+  // Inserta nuevos alumnos en lotes, reduciendo las llamadas a la API.
+  await ejecutarEnLotes(paraInsertar, TAMANO_LOTE, async lote => {
+    const { error } = await supabase.from("estudiantes").insert(lote);
+    if (error) throw new Error("No se pudo insertar un lote de estudiantes: " + error.message);
+    registros_insertados += lote.length;
+  });
 
+  // Actualiza los existentes con concurrencia limitada para acelerar la carga
+  // sin saturar Supabase ni cambiar la lógica de actualización por código.
+  await ejecutarEnLotes(paraActualizar, CONCURRENCIA_ACTUALIZACIONES, async lote => {
+    const resultados = await Promise.all(lote.map(async estudiante => {
+      const { id, ...datos } = estudiante;
+      const { error } = await supabase.from("estudiantes").update(datos).eq("id", id);
+      return { codigo: estudiante.codigo, error };
+    }));
+
+    const fallidos = resultados.filter(resultado => resultado.error);
+    if (fallidos.length) {
+      const primero = fallidos[0];
+      throw new Error("No se pudo actualizar el estudiante " + primero.codigo + ": " + primero.error.message);
+    }
+    registros_actualizados += lote.length;
+  });
+
+  // Solo después de importar correctamente todas las filas, marca como retirados
+  // a los alumnos que estaban activos y ya no aparecen en el CSV.
   const codigosActivosCSV = new Set(estudiantesCSV.map(estudiante => estudiante.codigo));
-  const idsRetirados = (existentes || [])
-    .filter(estudiante => !codigosActivosCSV.has(normalizarCodigo(estudiante.codigo)))
+  const idsRetirados = existentes
+    .filter(estudiante => estudiante.estado !== "R" && !codigosActivosCSV.has(normalizarCodigo(estudiante.codigo)))
     .map(estudiante => estudiante.id);
 
-  let registros_retirados = 0;
-  for (let i = 0; i < idsRetirados.length; i += 500) {
-    const bloque = idsRetirados.slice(i, i + 500);
+  await ejecutarEnLotes(idsRetirados, TAMANO_LOTE, async bloque => {
     const { error } = await supabase.from("estudiantes").update({ estado: "R" }).in("id", bloque);
     if (error) throw new Error("No se pudo marcar a todos los estudiantes retirados: " + error.message);
     registros_retirados += bloque.length;
-  }
+  });
 
   return {
     total_registros: estudiantesCSV.length,
