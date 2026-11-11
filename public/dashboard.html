@@ -696,12 +696,12 @@
         { titulo: "Salida", x: 140, ancho: pageWidth - 152 }
       ];
       const encabezado = () => {
-        doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text("Dashboard de Salidas - " + String(item.indicador), 12, 14);
-        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-        doc.text("Fecha: " + fecha + "   Horario: " + horaInicio + " - " + horaFin, 12, 21);
-        doc.text("Estudiantes: " + filas.length + "   Porcentaje: " + Number(item.porcentaje || 0).toFixed(2) + "%", 12, 27);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(7); columnas.forEach(col => doc.text(col.titulo, col.x, 35));
-        doc.setLineWidth(.25); doc.line(12, 37, pageWidth - 12, 37); doc.setFont("helvetica", "normal"); doc.setFontSize(7); return 42;
+        // El PDF contiene únicamente la tabla solicitada, sin título ni datos adicionales.
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+        columnas.forEach(col => doc.text(col.titulo, col.x, 15));
+        doc.setLineWidth(.25); doc.line(12, 17, pageWidth - 12, 17);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+        return 23;
       };
       let y = encabezado();
       filas.forEach(row => {
