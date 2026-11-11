@@ -690,10 +690,13 @@
       const horaInicio = document.getElementById("dsHoraInicioResumen")?.value || "00:00";
       const horaFin = document.getElementById("dsHoraFinResumen")?.value || "23:59";
       // El PDF del indicador incluye solo datos útiles para el reporte de salidas.
+      // Anchos equilibrados para aprovechar el espacio horizontal y facilitar la lectura.
       const columnas = [
-        { titulo: "Apellidos", x: 12, ancho: 37 }, { titulo: "Nombres", x: 50, ancho: 37 },
-        { titulo: "Curso", x: 88, ancho: 20 }, { titulo: "Entrada", x: 109, ancho: 30 },
-        { titulo: "Salida", x: 140, ancho: pageWidth - 152 }
+        { titulo: "Apellidos", x: 12, ancho: 42 },
+        { titulo: "Nombres", x: 56, ancho: 43 },
+        { titulo: "Curso", x: 101, ancho: 27 },
+        { titulo: "Entrada", x: 130, ancho: 70 },
+        { titulo: "Salida", x: 202, ancho: pageWidth - 214 }
       ];
       const encabezado = () => {
         doc.setFont("helvetica", "bold"); doc.setFontSize(15);
