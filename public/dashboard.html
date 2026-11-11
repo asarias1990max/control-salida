@@ -711,8 +711,8 @@
       const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth(), pageHeight = doc.internal.pageSize.getHeight();
       const fecha = document.getElementById("dsFechaResumen")?.value || "";
-      const horaInicio = document.getElementById("dsHoraInicioResumen")?.value || "00:00";
-      const horaFin = document.getElementById("dsHoraFinResumen")?.value || "23:59";
+      const horaInicio = modoConsultaSalidasHik === "todos" ? "00:00" : (document.getElementById("dsHoraInicioResumen")?.value || "07:20");
+      const horaFin = modoConsultaSalidasHik === "todos" ? "23:59" : (document.getElementById("dsHoraFinResumen")?.value || "08:30");
       // El PDF del indicador incluye solo datos útiles para el reporte de salidas.
       // Anchos equilibrados para aprovechar el espacio horizontal y facilitar la lectura.
       const columnas = [
@@ -757,6 +757,23 @@
       const safeKey = String(item.key).replace(/[^a-z0-9_-]/gi, "_");
       doc.save("salidas_" + safeKey + "_" + (fecha || "consulta") + ".pdf");
     }
+    let modoConsultaSalidasHik = "horario";
+
+    function cambiarModoConsultaSalidasHik(modo) {
+      modoConsultaSalidasHik = modo === "todos" ? "todos" : "horario";
+      const todos = document.getElementById("dsModoTodos");
+      const horario = document.getElementById("dsModoHorario");
+      const filtros = document.getElementById("dsFiltrosHorario");
+      const ayuda = document.getElementById("dsModoAyuda");
+      const esTodos = modoConsultaSalidasHik === "todos";
+      if (todos) { todos.className = "btn " + (esTodos ? "btn-primary" : "btn-outline-primary"); todos.setAttribute("aria-pressed", String(esTodos)); }
+      if (horario) { horario.className = "btn " + (!esTodos ? "btn-primary" : "btn-outline-primary"); horario.setAttribute("aria-pressed", String(!esTodos)); }
+      if (filtros) filtros.hidden = esTodos;
+      if (ayuda) ayuda.textContent = esTodos
+        ? "Se mostrarán todos los registros del día, sin limitar la hora."
+        : "Consulta los registros de la fecha dentro del horario seleccionado.";
+    }
+
     async function cargarResumenDiarioSalidasHik(soloLectura = false) {
       const cuerpo = document.getElementById("dsTablaResumenDiario");
       const estado = document.getElementById("dsResumenEstado");
@@ -767,7 +784,7 @@
       const horaFin = document.getElementById("dsHoraFinResumen")?.value || "23:59";
       if (!cuerpo || !estado || !indicadores) return;
       if (!fecha) { estado.textContent = "Selecciona una fecha para generar el control."; return; }
-      if (horaInicio > horaFin) {
+      if (modoConsultaSalidasHik === "horario" && horaInicio > horaFin) {
         estado.className = "small text-danger mb-2";
         estado.textContent = "La hora desde no puede ser posterior a la hora hasta.";
         return;
@@ -781,7 +798,7 @@
       }
       try {
         const parametroLectura = soloLectura ? "&soloLectura=1" : "";
-        const parametrosHora = "&hora_inicio=" + encodeURIComponent(horaInicio) + "&hora_fin=" + encodeURIComponent(horaFin);
+        const parametrosHora = "&modo=" + encodeURIComponent(modoConsultaSalidasHik) + "&hora_inicio=" + encodeURIComponent(horaInicio) + "&hora_fin=" + encodeURIComponent(horaFin);
         const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha) + parametrosHora + parametroLectura, { headers: { Accept: "application/json" } });
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo generar el control diario.");
@@ -821,7 +838,7 @@
         filtrarResumenDiarioSalidasHik();
         const advertenciasHik = Array.isArray(result.advertencias) ? result.advertencias : [];
         const fuentesHik = result.fuentes || {};
-        const estadoBaseHik = "Fecha: " + result.fecha + " · Horario: " + horaInicio + "–" + horaFin + " · Estudiantes activos: " + result.totalEstudiantes +
+        const estadoBaseHik = "Fecha: " + result.fecha +  " · " + (modoConsultaSalidasHik === "todos" ? "Todos los horarios" : "Horario: " + horaInicio + "–" + horaFin) + " · Estudiantes activos: " + result.totalEstudiantes +
           " · Eventos guardados: " + Number(fuentesHik.eventosHikCentral || 0) +
           (result.sincronizando ? " · Consultando HikCentral…" : "");
         estado.className = "small mb-2 " + (advertenciasHik.length && !result.sincronizando ? "text-danger" : "text-muted");
@@ -830,8 +847,8 @@
         if (result.sincronizando) {
           window.setTimeout(() => {
             const fechaActual = document.getElementById("dsFechaResumen")?.value || "";
-            const horaInicioActual = document.getElementById("dsHoraInicioResumen")?.value || "00:00";
-            const horaFinActual = document.getElementById("dsHoraFinResumen")?.value || "23:59";
+            const horaInicioActual = modoConsultaSalidasHik === "todos" ? "00:00" : (document.getElementById("dsHoraInicioResumen")?.value || "07:20");
+            const horaFinActual = modoConsultaSalidasHik === "todos" ? "23:59" : (document.getElementById("dsHoraFinResumen")?.value || "08:30");
             if (fechaActual === fecha && horaInicioActual === horaInicio && horaFinActual === horaFin) cargarResumenDiarioSalidasHik(true);
           }, 3000);
         }
