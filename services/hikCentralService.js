@@ -199,15 +199,22 @@ export async function sincronizarNivelesYAsignacionesHik() {
   const listaNiveles = [];
   // La respuesta documentada de privilege/group ya incluye timeSchedule.indexCode y timeSchedule.name.
   // No se llama a un endpoint de plantillas separado porque no se ha verificado en la referencia OpenAPI disponible.
-  const filasHorarios = niveles.map(nivel => {
+  // Una misma plantilla puede estar asociada a varios niveles de acceso.
+  // Supabase no permite que un mismo ON CONFLICT se repita dentro del mismo upsert,
+  // por eso consolidamos las plantillas por index_code antes de guardarlas.
+  const horariosUnicos = new Map();
+  for (const nivel of niveles) {
     const horario = nivel.timeSchedule || {};
-    return {
-      index_code: String(horario.indexCode ?? ""),
+    const indexCode = String(horario.indexCode ?? "").trim();
+    if (!indexCode) continue;
+    horariosUnicos.set(indexCode, {
+      index_code: indexCode,
       nombre: String(horario.name ?? "Horario sin nombre"),
       datos_originales: horario,
       sincronizado_en: new Date().toISOString()
-    };
-  }).filter(h => h.index_code);
+    });
+  }
+  const filasHorarios = [...horariosUnicos.values()];
   const horarioPorId = new Map(filasHorarios.map(h => [h.index_code, h]));
   const asignaciones = [];
   const estudiantesResult = await supabase.from("estudiantes")
