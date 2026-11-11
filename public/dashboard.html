@@ -678,6 +678,46 @@
       actualizarPaginadorResumenHik(rows.length);
     }
 
+    function descargarPDFIndicadorSalidasHik(indicadorKey) {
+      const item = indicadoresDiariosData.find(indicador => indicador.key === indicadorKey);
+      if (!item) { alert("No se encontró el indicador seleccionado."); return; }
+      const filas = resumenDiarioSalidasData.filter(row => row.flags && row.flags[indicadorKey]);
+      if (!filas.length) { alert("No hay estudiantes para descargar en este indicador."); return; }
+      if (!window.jspdf || !window.jspdf.jsPDF) { alert("No está disponible el generador PDF. Recarga el sistema e inténtalo nuevamente."); return; }
+      const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth(), pageHeight = doc.internal.pageSize.getHeight();
+      const fecha = document.getElementById("dsFechaResumen")?.value || "";
+      const horaInicio = document.getElementById("dsHoraInicioResumen")?.value || "00:00";
+      const horaFin = document.getElementById("dsHoraFinResumen")?.value || "23:59";
+      const columnas = [
+        { titulo: "Apellidos", x: 12, ancho: 37 }, { titulo: "Nombres", x: 50, ancho: 37 },
+        { titulo: "Curso", x: 88, ancho: 20 }, { titulo: "Entrada", x: 109, ancho: 30 },
+        { titulo: "Salida", x: 140, ancho: 30 }, { titulo: "Nivel de acceso", x: 171, ancho: 37 },
+        { titulo: "Horario permitido", x: 209, ancho: 32 }, { titulo: "Punto permitido", x: 242, ancho: pageWidth - 254 }
+      ];
+      const encabezado = () => {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text("Dashboard de Salidas - " + String(item.indicador), 12, 14);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        doc.text("Fecha: " + fecha + "   Horario: " + horaInicio + " - " + horaFin, 12, 21);
+        doc.text("Estudiantes: " + filas.length + "   Porcentaje: " + Number(item.porcentaje || 0).toFixed(2) + "%", 12, 27);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7); columnas.forEach(col => doc.text(col.titulo, col.x, 35));
+        doc.setLineWidth(.25); doc.line(12, 37, pageWidth - 12, 37); doc.setFont("helvetica", "normal"); doc.setFontSize(7); return 42;
+      };
+      let y = encabezado();
+      filas.forEach(row => {
+        const valores = [row.apellidos || "", row.nombres || "", row.curso || "—",
+          textoEventoAcceso(row.puerta_entrada, row.hora_entrada, row.resultado_entrada),
+          textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida),
+          (row.niveles || []).join(", ") || "—", row.configuracion?.horario || "—", row.configuracion?.puertas || "—"];
+        const celdas = valores.map((valor, i) => doc.splitTextToSize(String(valor), columnas[i].ancho));
+        const alto = Math.max(5, ...celdas.map(lines => lines.length * 3.2));
+        if (y + alto > pageHeight - 12) { doc.addPage(); y = encabezado(); }
+        celdas.forEach((lines, i) => doc.text(lines, columnas[i].x, y));
+        doc.setDrawColor(225, 230, 238); doc.line(12, y + alto - 1, pageWidth - 12, y + alto - 1); y += alto + 2;
+      });
+      const safeKey = String(item.key).replace(/[^a-z0-9_-]/gi, "_");
+      doc.save("salidas_" + safeKey + "_" + (fecha || "consulta") + ".pdf");
+    }
     async function cargarResumenDiarioSalidasHik(soloLectura = false) {
       const cuerpo = document.getElementById("dsTablaResumenDiario");
       const estado = document.getElementById("dsResumenEstado");
@@ -722,14 +762,16 @@
         indicadoresDiariosData.forEach(item => {
           const tr = document.createElement("tr");
           [item.indicador, item.estudiantes, item.total, Number(item.porcentaje).toFixed(2) + "%"].forEach(value => {
-            const td = document.createElement("td");
-            td.textContent = String(value);
-            tr.append(td);
+            const td = document.createElement("td"); td.textContent = String(value); tr.append(td);
           });
-          tr.style.cursor = "pointer";
-          tr.title = "Seleccionar este indicador";
-          tr.addEventListener("click", () => filtrarResumenDiarioSalidasHik(item.key));
-          indicadores.append(tr);
+          const tdPdf = document.createElement("td"); tdPdf.className = "text-center";
+          const botonPdf = document.createElement("button"); botonPdf.type = "button";
+          botonPdf.className = "btn btn-sm btn-outline-danger"; botonPdf.title = "Descargar PDF de " + item.indicador;
+          botonPdf.setAttribute("aria-label", botonPdf.title); botonPdf.innerHTML = '<i class="bi bi-file-earmark-pdf"></i>';
+          botonPdf.addEventListener("click", event => { event.stopPropagation(); descargarPDFIndicadorSalidasHik(item.key); });
+          tdPdf.append(botonPdf); tr.append(tdPdf);
+          tr.style.cursor = "pointer"; tr.title = "Seleccionar este indicador";
+          tr.addEventListener("click", () => filtrarResumenDiarioSalidasHik(item.key)); indicadores.append(tr);
         });
         if (filtro) {
           const previous = filtro.value;
