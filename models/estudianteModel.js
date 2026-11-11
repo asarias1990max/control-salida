@@ -15,7 +15,7 @@ function leerCSV(buffer) {
     const registros = [];
     const stream = Readable.from(buffer.toString("utf8"));
     stream
-      .pipe(csv({ mapHeaders: ({ header }) => String(header || "").replace(/^\\uFEFF/, "").trim() }))
+      .pipe(csv({ mapHeaders: ({ header }) => String(header || "").replace(/^\\uFEFF/, "").trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase() }))
       .on("data", row => registros.push(row))
       .on("end", () => resolve(registros))
       .on("error", reject);
@@ -24,7 +24,7 @@ function leerCSV(buffer) {
 
 export async function procesarCSVEstudiantes(buffer) {
   const filas = await leerCSV(buffer);
-  const columnasRequeridas = ["CODIGO", "CODIGO HIK", "APELLIDOS", "NOMBRES", "SECCIÓN", "CURSO", "PARALELO"];
+  const columnasRequeridas = ["CODIGO", "CODIGO HIK", "APELLIDOS", "NOMBRES", "SECCION", "CURSO", "PARALELO"];
   if (!filas.length) throw new Error("El CSV está vacío. No se modificó ningún estudiante.");
   const faltantes = columnasRequeridas.filter(columna => !Object.prototype.hasOwnProperty.call(filas[0], columna));
   if (faltantes.length) throw new Error("El CSV no contiene las columnas requeridas: " + faltantes.join(", ") + ". No se modificó ningún estudiante.");
@@ -48,7 +48,7 @@ export async function procesarCSVEstudiantes(buffer) {
       codigo_hik: normalizarCodigo(fila["CODIGO HIK"]),
       apellidos,
       nombres,
-      seccion: normalizarTexto(fila["SECCIÓN"]),
+      seccion: normalizarTexto(fila["SECCION"]),
       curso: normalizarTexto(fila["CURSO"]),
       paralelo: normalizarTexto(fila["PARALELO"]),
       estado: "A"
