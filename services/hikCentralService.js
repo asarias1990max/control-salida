@@ -278,19 +278,33 @@ export async function sincronizarNivelesYAsignacionesHik() {
     })).filter(p => p.consultaId);
     const ids = [...new Set(personasHik.map(p => p.consultaId))];
     const personaPorId = new Map(personasHik.map(p => [p.consultaId, p]));
-    for (let i = 0; i < ids.length; i += 10) {
-      const lote = ids.slice(i, i + 10).filter(personId => !cacheDetallesPersona.has(personId));
-      const detalles = await Promise.all(lote.map(async personId => {
+    // HikCentral limita la frecuencia de consultas a personInfo. Evitamos ráfagas
+    // paralelas y aplicamos espera incremental si la API devuelve "Api calls exceed limits".
+    for (const personId of ids) {
+      if (cacheDetallesPersona.has(personId)) continue;
+      let info = null;
+      let ultimoError = null;
+      for (let intento = 1; intento <= 4; intento++) {
         try {
-          const infoData = await postArtemis("/artemis/api/resource/v1/person/personId/personInfo", { personId });
-          return { personId, info: infoData };
+          info = await postArtemis("/artemis/api/resource/v1/person/personId/personInfo", { personId });
+          ultimoError = null;
+          break;
         } catch (error) {
-          erroresDetallePersona++;
-          console.warn("[HikCentral] No se pudo resolver persona para nivel", nivel.nombre, personId, error.message);
-          return { personId, info: null };
+          ultimoError = error;
+          const esLimiteApi = /0x0240103b|api calls exceed limits/i.test(error.message || "");
+          if (!esLimiteApi || intento === 4) break;
+          const esperaMs = 2000 * Math.pow(2, intento - 1);
+          console.warn("[HikCentral] Límite de consultas personInfo. Reintento", intento, "de 3 para", personId, "en", esperaMs, "ms.");
+          await new Promise(resolve => setTimeout(resolve, esperaMs));
         }
-      }));
-      detalles.forEach(detalle => cacheDetallesPersona.set(detalle.personId, detalle.info));
+      }
+      if (ultimoError) {
+        erroresDetallePersona++;
+        console.warn("[HikCentral] No se pudo resolver persona para nivel", nivel.nombre, personId, ultimoError.message);
+      }
+      cacheDetallesPersona.set(personId, info);
+      // Pausa breve entre personas para no saturar el límite de frecuencia de HikCentral.
+      await new Promise(resolve => setTimeout(resolve, 350));
     }
     for (const personId of ids) {
       const info = cacheDetallesPersona.get(personId);
