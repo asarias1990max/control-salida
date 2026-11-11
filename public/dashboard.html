@@ -1595,11 +1595,104 @@ async function cargarEstudiantesLower() {
         });
     }
 
-    function logout() {
+    // Cierre automático de sesión después de 15 minutos sin actividad.
+    const TIEMPO_INACTIVIDAD_MS = 15 * 60 * 1000;
+    const AVISO_CIERRE_MS = 60 * 1000;
+    const CLAVE_ULTIMA_ACTIVIDAD = "controlSalida_ultimaActividad";
+    let avisoInactividadVisible = false;
+    let intervaloInactividad = null;
+    let ultimoRegistroActividad = 0;
+
+    function obtenerUltimaActividad() {
+      return Number(localStorage.getItem(CLAVE_ULTIMA_ACTIVIDAD)) || Date.now();
+    }
+
+    function registrarActividad(forzar = false) {
+      if (!localStorage.getItem("usuario")) return;
+      const ahora = Date.now();
+      if (!forzar && ahora - ultimoRegistroActividad < 4000) return;
+      ultimoRegistroActividad = ahora;
+      localStorage.setItem(CLAVE_ULTIMA_ACTIVIDAD, String(ahora));
+      ocultarAvisoInactividad();
+    }
+
+    function mostrarAvisoInactividad(segundos) {
+      let aviso = document.getElementById("avisoInactividad");
+      if (!aviso) {
+        aviso = document.createElement("div");
+        aviso.id = "avisoInactividad";
+        aviso.className = "position-fixed bottom-0 end-0 m-3 p-3 bg-white border border-warning rounded-3 shadow-lg";
+        aviso.style.cssText = "z-index:2000;max-width:360px;width:calc(100% - 32px);";
+        aviso.innerHTML = `
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-warning fs-4"></i>
+            <div class="flex-grow-1">
+              <div class="fw-bold mb-1">Sesión por finalizar</div>
+              <div class="small text-muted mb-2">No hemos detectado actividad. Tu sesión se cerrará automáticamente en <strong id="cuentaRegresivaInactividad">60</strong> segundos.</div>
+              <button type="button" class="btn btn-primary btn-sm" id="btnContinuarSesion">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Seguir trabajando
+              </button>
+            </div>
+          </div>`;
+        document.body.appendChild(aviso);
+        document.getElementById("btnContinuarSesion").addEventListener("click", () => registrarActividad(true));
+      }
+      aviso.style.display = "block";
+      const contador = document.getElementById("cuentaRegresivaInactividad");
+      if (contador) contador.textContent = String(Math.max(0, segundos));
+      avisoInactividadVisible = true;
+    }
+
+    function ocultarAvisoInactividad() {
+      const aviso = document.getElementById("avisoInactividad");
+      if (aviso) aviso.style.display = "none";
+      avisoInactividadVisible = false;
+    }
+
+    function comprobarInactividad() {
+      const inactivoMs = Date.now() - obtenerUltimaActividad();
+      const restanteMs = TIEMPO_INACTIVIDAD_MS - inactivoMs;
+
+      if (restanteMs <= 0) {
+        logout(true);
+        return;
+      }
+
+      if (restanteMs <= AVISO_CIERRE_MS) {
+        mostrarAvisoInactividad(Math.ceil(restanteMs / 1000));
+      } else if (avisoInactividadVisible) {
+        ocultarAvisoInactividad();
+      }
+    }
+
+    function iniciarControlInactividad() {
+      if (!localStorage.getItem("usuario")) return;
+      if (!localStorage.getItem(CLAVE_ULTIMA_ACTIVIDAD)) {
+        registrarActividad(true);
+      }
+      ["pointerdown", "keydown", "touchstart", "scroll"].forEach(evento => {
+        document.addEventListener(evento, () => registrarActividad(), { passive: true });
+      });
+      document.addEventListener("mousemove", () => registrarActividad());
+      window.addEventListener("storage", evento => {
+        if (evento.key === CLAVE_ULTIMA_ACTIVIDAD) ocultarAvisoInactividad();
+        if (evento.key === "usuario" && !evento.newValue) window.location.replace("/");
+      });
+      comprobarInactividad();
+      intervaloInactividad = window.setInterval(comprobarInactividad, 1000);
+    }
+
+    function logout(porInactividad = false) {
+      if (intervaloInactividad) window.clearInterval(intervaloInactividad);
       localStorage.removeItem("usuario");
+      localStorage.removeItem(CLAVE_ULTIMA_ACTIVIDAD);
+      if (porInactividad) {
+        alert("Tu sesión se cerró automáticamente por 15 minutos de inactividad.");
+      }
       window.location.href = "/";
     }
 
+    iniciarControlInactividad();
     mostrarInicio();
 
 function renderTablaLower(lista) {
