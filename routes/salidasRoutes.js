@@ -71,7 +71,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     const inicio = new Date(fecha + "T05:00:00.000Z");
     const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
     const [estudiantesResult, eventosResult, asignacionesResult, configuracionResult] = await Promise.all([
-      supabase.from("estudiantes").select("id,codigo,codigo_hik,apellidos,nombres,seccion,curso,paralelo").eq("estado", true).order("apellidos", { ascending: true }),
+      supabase.from("estudiantes").select("id,codigo,codigo_hik,apellidos,nombres,seccion,curso,paralelo").eq("estado", "A").order("apellidos", { ascending: true }),
       supabase.from("eventos_hikcentral").select("estudiante_id,codigo_hik,fecha_evento,puerta_codigo,puerta_nombre,tipo_evento,tipo_evento_codigo,resultado,datos_originales").gte("fecha_evento", inicio.toISOString()).lt("fecha_evento", fin.toISOString()).order("fecha_evento", { ascending: true }),
       supabase.from("estudiante_niveles_acceso_hikcentral").select("estudiante_id, privilege_group_id, niveles_acceso_hikcentral(nombre,hora_salida,time_schedule_name)"),
       supabase.from("configuracion_salidas").select("nivel_acceso,hora_inicio,hora_fin,puertas").eq("activo", true)
