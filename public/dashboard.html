@@ -707,7 +707,17 @@
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo generar el control diario.");
         resumenDiarioSalidasData = Array.isArray(result.data) ? result.data : [];
-        indicadoresDiariosData = Array.isArray(result.indicadores) ? result.indicadores : [];
+        const todosIndicadoresDiariosData = Array.isArray(result.indicadores) ? result.indicadores : [];
+        // En el Dashboard mostramos únicamente los tres indicadores solicitados.
+        // Los demás permanecen intactos en el backend y no se eliminan.
+        const indicadoresVisiblesDashboard = new Set([
+          "con entrada y salida",
+          "con entrada y sin salida",
+          "ausentes (sin entrada ni salida)"
+        ]);
+        indicadoresDiariosData = todosIndicadoresDiariosData.filter(item =>
+          indicadoresVisiblesDashboard.has(String(item.indicador || "").trim().toLocaleLowerCase("es"))
+        );
         indicadores.replaceChildren();
         indicadoresDiariosData.forEach(item => {
           const tr = document.createElement("tr");
