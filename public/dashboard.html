@@ -696,12 +696,20 @@
         { titulo: "Salida", x: 140, ancho: pageWidth - 152 }
       ];
       const encabezado = () => {
-        // El PDF contiene únicamente la tabla solicitada, sin título ni datos adicionales.
+        doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+        doc.text("REPORTE DE ENTRADA Y SALIDA COLEGIO EINSTEIN", pageWidth / 2, 14, { align: "center" });
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        doc.text("Fecha: " + fecha + "   Horario: " + horaInicio + " - " + horaFin, 12, 22);
+        doc.text("Estudiantes: " + filas.length + "   Porcentaje: " + Number(item.porcentaje || 0).toFixed(2) + "%", 12, 29);
         doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-        columnas.forEach(col => doc.text(col.titulo, col.x, 15));
-        doc.setLineWidth(.25); doc.line(12, 17, pageWidth - 12, 17);
+        columnas.forEach(col => doc.text(col.titulo, col.x, 38));
+        doc.setLineWidth(.25); doc.line(12, 40, pageWidth - 12, 40);
         doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-        return 23;
+        return 46;
+      };
+      const piePagina = () => {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+        doc.text("Departamento de sistemas AS-FS", pageWidth / 2, pageHeight - 8, { align: "center" });
       };
       let y = encabezado();
       filas.forEach(row => {
@@ -710,10 +718,15 @@
           textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida)];
         const celdas = valores.map((valor, i) => doc.splitTextToSize(String(valor), columnas[i].ancho));
         const alto = Math.max(5, ...celdas.map(lines => lines.length * 3.2));
-        if (y + alto > pageHeight - 12) { doc.addPage(); y = encabezado(); }
+        if (y + alto > pageHeight - 18) {
+          piePagina();
+          doc.addPage();
+          y = encabezado();
+        }
         celdas.forEach((lines, i) => doc.text(lines, columnas[i].x, y));
         doc.setDrawColor(225, 230, 238); doc.line(12, y + alto - 1, pageWidth - 12, y + alto - 1); y += alto + 2;
       });
+      piePagina();
       const safeKey = String(item.key).replace(/[^a-z0-9_-]/gi, "_");
       doc.save("salidas_" + safeKey + "_" + (fecha || "consulta") + ".pdf");
     }
