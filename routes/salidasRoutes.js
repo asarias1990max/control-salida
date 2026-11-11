@@ -50,8 +50,9 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     }).format(new Date());
     const horaInicio = String(req.query.hora_inicio || "00:00").trim();
     const horaFin = String(req.query.hora_fin || "23:59").trim();
+    const modo = String(req.query.modo || "horario").trim() === "todos" ? "todos" : "horario";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(horaInicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaFin) || horaInicio > horaFin) {
+    if (modo === "horario" && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(horaInicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaFin) || horaInicio > horaFin)) {
       return res.status(400).json({ ok: false, message: "Selecciona un rango horario válido." });
     }
     // La carga inicial espera la consulta real de HikCentral. No se responde con registros
@@ -123,7 +124,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       asignacionesPorEstudiante.set(row.estudiante_id, lista);
     });
     const horaLocal = valor => new Intl.DateTimeFormat("en-GB", { timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(valor));
-    const eventosEnHorario = (eventosResult.data || []).filter(evento => {
+    const eventosEnHorario = modo === "todos" ? (eventosResult.data || []) : (eventosResult.data || []).filter(evento => {
       const horaEvento = horaLocal(evento.fecha_evento).slice(0, 5);
       return horaEvento >= horaInicio && horaEvento <= horaFin;
     });
@@ -216,8 +217,9 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     return res.json({
       ok: true,
       fecha,
-      horaInicio,
-      horaFin,
+      modo,
+      horaInicio: modo === "todos" ? null : horaInicio,
+      horaFin: modo === "todos" ? null : horaFin,
       totalEstudiantes: total,
       indicadores,
       data: resumen,
