@@ -1604,10 +1604,10 @@ async function cargarEstudiantesLower() {
     let ultimoRegistroActividad = 0;
     let ultimoHeartbeatServidor = 0;
 
-    async function notificarActividadServidor() {
+    async function notificarActividadServidor(forzar = false) {
       if (!localStorage.getItem("usuario")) return;
       const ahora = Date.now();
-      if (ahora - ultimoHeartbeatServidor < 30000) return;
+      if (!forzar && ahora - ultimoHeartbeatServidor < 30000) return;
       ultimoHeartbeatServidor = ahora;
       try {
         const response = await fetch("/api/auth/activity", {
@@ -1657,7 +1657,7 @@ async function cargarEstudiantesLower() {
       ultimoRegistroActividad = ahora;
       localStorage.setItem(CLAVE_ULTIMA_ACTIVIDAD, String(ahora));
       ocultarAvisoInactividad();
-      notificarActividadServidor();
+      notificarActividadServidor(forzar);
     }
 
     function mostrarAvisoInactividad(segundos) {
