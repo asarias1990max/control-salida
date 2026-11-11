@@ -366,12 +366,17 @@
         permiso: "dashboard_salidas",
         texto: "Dashboard de Salidas",
         icono: "bi-speedometer2"
+      },
+      {
+        permiso: "usuarios",
+        texto: "Usuarios y permisos",
+        icono: "bi-people"
       }
 
     ];
 
     opciones.forEach(op => {
-      if (permisos.includes(op.permiso)) {
+      if (permisos.includes(op.permiso) || (esAdministrador && op.permiso === "usuarios")) {
         menu.innerHTML += `
           <a href="#" title="${op.texto}" aria-label="${op.texto}" onclick="cargarVista('${op.permiso}')">
             <i class="bi ${op.icono}"></i><span class="sidebar-link-text">${op.texto}</span>
