@@ -84,6 +84,23 @@ export function exigirSesion(req, res, next) {
     });
   }
 
+  req.usuarioSesion = resultado.sesion.usuario;
+  next();
+}
+
+// Solo este middleware renueva la sesión: se ejecuta desde el pulso explícito
+// de actividad del navegador, nunca por consultas automáticas del dashboard.
+export function registrarActividad(req, res, next) {
+  const resultado = obtenerSesion(req);
+  if (!resultado) {
+    limpiarCookieSesion(res);
+    return res.status(401).json({
+      ok: false,
+      code: "SESSION_EXPIRED",
+      message: "Tu sesión expiró. Inicia sesión nuevamente."
+    });
+  }
+
   resultado.sesion.ultimaActividad = Date.now();
   configurarCookie(res, leerToken(req));
   req.usuarioSesion = resultado.sesion.usuario;
@@ -96,9 +113,6 @@ export function renovarSesionActual(req, res) {
     limpiarCookieSesion(res);
     return null;
   }
-
-  resultado.sesion.ultimaActividad = Date.now();
-  configurarCookie(res, leerToken(req));
   return resultado.sesion.usuario;
 }
 
