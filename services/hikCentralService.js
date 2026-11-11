@@ -212,7 +212,7 @@ export async function sincronizarNivelesYAsignacionesHik() {
   const asignaciones = [];
   const estudiantesResult = await supabase.from("estudiantes")
     .select("id,codigo,codigo_hik,apellidos,nombres,estado")
-    .eq("estado", true)
+    .eq("estado", "A")
     .not("codigo_hik", "is", null);
   if (estudiantesResult.error) throw new Error("No se pudieron cargar estudiantes: " + estudiantesResult.error.message);
   const estudiantes = estudiantesResult.data || [];
@@ -681,7 +681,7 @@ export async function obtenerDashboardEventosHik(fechaInicio, fechaFin, codigosP
     const { data, error } = await supabase
       .from("estudiantes")
       .select("id, codigo_hik, codigo, apellidos, nombres, seccion, curso, paralelo, estado")
-      .eq("estado", true)
+      .eq("estado", "A")
       .not("codigo_hik", "is", null)
       .range(desde, desde + tamanoPaginaEstudiantes - 1);
     if (error) throw new Error("No se pudo consultar la lista de estudiantes de Supabase: " + error.message);
