@@ -199,56 +199,7 @@
       #contenidoDinamico .table td, #contenidoDinamico .table th { padding:.7rem .6rem; }
     }
   
-    
-    /* Dashboard general: identidad visual propia, separada del Dashboard de Salidas */
-    .home-dashboard { padding:4px 2px 24px; }
-    .home-welcome {
-      display:flex; justify-content:space-between; align-items:flex-end; gap:20px;
-      padding:30px clamp(20px,3vw,36px); margin-bottom:30px; border-radius:22px;
-      color:#fff; background:linear-gradient(115deg,#172b5e 0%,#2449a5 62%,#4775ce 100%);
-      box-shadow:0 16px 36px rgba(29,54,121,.18); position:relative; overflow:hidden;
-    }
-    .home-welcome:after { content:""; position:absolute; width:260px; height:260px; border:1px solid rgba(255,255,255,.12); border-radius:50%; right:8%; top:-160px; box-shadow:0 0 0 28px rgba(255,255,255,.035),0 0 0 58px rgba(255,255,255,.025); }
-    .home-eyebrow { font-size:.7rem; letter-spacing:.13em; font-weight:750; color:rgba(255,255,255,.72); }
-    .home-welcome h1 { color:#fff!important; font-size:clamp(1.65rem,3vw,2.25rem); font-weight:800; letter-spacing:-.045em; margin:12px 0 7px; }
-    .home-welcome p { margin:0; color:rgba(255,255,255,.78); font-size:.94rem; }
-    .home-date { position:relative; z-index:1; display:flex; align-items:center; gap:9px; white-space:nowrap; padding:11px 15px; border:1px solid rgba(255,255,255,.22); border-radius:13px; background:rgba(255,255,255,.12); font-size:.85rem; font-weight:650; }
-    .home-section-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:0 2px 15px; }
-    .home-section-heading h2,.home-activity-heading h2 { margin:0; font-size:1.08rem; font-weight:800; letter-spacing:-.025em; color:#17243b; }
-    .home-section-heading p,.home-activity-heading p { margin:4px 0 0; color:#7a879b; font-size:.83rem; }
-    .home-live { display:flex; align-items:center; gap:8px; color:#64748b; font-size:.77rem; font-weight:650; }
-    .home-live span { width:8px; height:8px; border-radius:50%; background:#20b77a; box-shadow:0 0 0 4px rgba(32,183,122,.12); }
-    .home-kpis { margin-bottom:25px; }
-    .home-kpi { height:100%; min-height:172px; padding:22px 23px; border:1px solid #e7edf6; border-radius:19px; background:#fff; box-shadow:0 8px 24px rgba(24,47,94,.055); transition:transform .18s ease,box-shadow .18s ease; }
-    .home-kpi:hover { transform:translateY(-3px); box-shadow:0 14px 28px rgba(24,47,94,.09); }
-    .home-kpi-top { display:flex; justify-content:space-between; align-items:center; }
-    .home-kpi-icon { width:43px; height:43px; display:grid; place-items:center; border-radius:14px; font-size:1.15rem; }
-    .home-kpi-label { font-size:.67rem; font-weight:800; letter-spacing:.1em; color:#8995a8; }
-    .home-kpi-value { margin-top:17px; color:#17243b; font-size:2rem; line-height:1; font-weight:800; letter-spacing:-.05em; }
-    .home-kpi-caption { margin-top:8px; color:#8290a4; font-size:.8rem; }
-    .home-kpi-blue .home-kpi-icon { background:#eaf0ff; color:#315bc0; }
-    .home-kpi-green .home-kpi-icon { background:#e6f8f0; color:#159568; }
-    .home-kpi-amber .home-kpi-icon { background:#fff4df; color:#c78317; }
-    .home-activity-card { overflow:hidden; border:1px solid #e7edf6; border-radius:20px; background:#fff; box-shadow:0 8px 24px rgba(24,47,94,.055); }
-    .home-activity-heading { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:21px 24px; border-bottom:1px solid #edf1f7; }
-    .home-activity-icon { width:42px; height:42px; display:grid; place-items:center; border-radius:13px; background:#edf2ff; color:#315bc0; font-size:1.1rem; }
-    .home-activity-tag { padding:6px 10px; border-radius:8px; background:#f2f5fa; color:#75839a; font-size:.65rem; font-weight:800; letter-spacing:.09em; }
-    .home-activity-table { min-width:480px; }
-    .home-activity-table thead th { padding:13px 24px; background:#f8faff; color:#8290a4; border-bottom:1px solid #edf1f7; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:800; }
-    .home-activity-table tbody td { padding:15px 24px; border-color:#f0f3f8; color:#43516a; font-size:.87rem; }
-    .home-activity-table tbody tr:last-child td { border-bottom:0; }
-    .home-activity-table .badge { padding:7px 10px; border-radius:8px; font-weight:700; }
-    .home-footer-note { margin:16px 3px 0; color:#9aa5b5; font-size:.75rem; text-align:right; }
-    @media(max-width:767.98px) {
-      .home-welcome { align-items:flex-start; flex-direction:column; padding:23px 20px; margin-bottom:23px; }
-      .home-date { white-space:normal; }
-      .home-section-heading { align-items:flex-start; flex-direction:column; }
-      .home-kpi { min-height:150px; padding:19px; }
-      .home-activity-heading { padding:18px; }
-      .home-activity-table thead th,.home-activity-table tbody td { padding:13px 16px; }
-      .home-footer-note { text-align:left; }
-    }
-\n  </style>
+  </style>
 </head>
 
 <body class="sidebar-collapsed">
@@ -274,63 +225,52 @@
       <div id="userName" class="text-muted small"></div>
     </div>
 
-    <div id="inicio" class="section-box home-dashboard">
-      <section class="home-welcome">
-        <div>
-          <span class="home-eyebrow"><i class="bi bi-grid-1x2-fill me-1"></i> COLEGIO EINSTEIN · CONTROL DE SALIDAS</span>
-          <h1>Resumen general</h1>
-          <p>Consulta el estado de estudiantes y la actividad registrada en el sistema.</p>
-        </div>
-        <div class="home-date"><i class="bi bi-calendar3"></i><span id="dashboardFecha">Cargando fecha...</span></div>
-      </section>
+    <div id="inicio" class="section-box">
+      <div class="row">
 
-      <div class="home-section-heading">
-        <div><h2>Indicadores principales</h2><p>Resumen de la jornada</p></div>
-        <span class="home-live"><span></span> Información del sistema</span>
-      </div>
-
-      <div class="row g-3 home-kpis">
-        <div class="col-12 col-md-4">
-          <article class="home-kpi home-kpi-blue">
-            <div class="home-kpi-top"><span class="home-kpi-icon"><i class="bi bi-people-fill"></i></span><span class="home-kpi-label">ESTUDIANTES</span></div>
-            <div class="home-kpi-value" id="totalEstudiantes">Cargando...</div>
-            <div class="home-kpi-caption">Total de estudiantes registrados</div>
-          </article>
-        </div>
-        <div class="col-12 col-md-4">
-          <article class="home-kpi home-kpi-green">
-            <div class="home-kpi-top"><span class="home-kpi-icon"><i class="bi bi-door-open-fill"></i></span><span class="home-kpi-label">SALIDAS DE HOY</span></div>
-            <div class="home-kpi-value" id="salidasHoy">Cargando...</div>
-            <div class="home-kpi-caption">Salidas registradas durante el día</div>
-          </article>
-        </div>
-        <div class="col-12 col-md-4">
-          <article class="home-kpi home-kpi-amber">
-            <div class="home-kpi-top"><span class="home-kpi-icon"><i class="bi bi-hourglass-split"></i></span><span class="home-kpi-label">PENDIENTES</span></div>
-            <div class="home-kpi-value" id="pendientes">Cargando...</div>
-            <div class="home-kpi-caption">Registros pendientes de salida</div>
-          </article>
-        </div>
-      </div>
-
-      <section class="home-activity-card">
-        <div class="home-activity-heading">
-          <div class="d-flex align-items-center gap-3">
-            <span class="home-activity-icon"><i class="bi bi-clock-history"></i></span>
-            <div><h2>Actividad reciente</h2><p>Últimos movimientos registrados en el sistema</p></div>
+        <div class="col-md-4">
+          <div class="card shadow p-3">
+            <h6>Total Estudiantes</h6>
+            <h3 id="totalEstudiantes">Cargando...</h3>
           </div>
-          <span class="home-activity-tag">REGISTROS</span>
         </div>
-        <div class="table-responsive">
-          <table class="table home-activity-table align-middle mb-0">
-            <thead><tr><th>Estudiante</th><th>Tipo de movimiento</th><th class="text-md-end">Hora</th></tr></thead>
-            <tbody id="actividadReciente">
-              <tr><td colspan="3" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando actividad reciente...</td></tr>
-            </tbody>
-          </table>
+
+        <div class="col-md-4">
+          <div class="card shadow p-3">
+            <h6>Salidas Hoy</h6>
+            <h3 id="salidasHoy">Cargando...</h3>
+          </div>
         </div>
-      </section>
-      <div class="home-footer-note"><i class="bi bi-shield-check me-1"></i> Panel general de gestión · Colegio Einstein</div>
+
+        <div class="col-md-4">
+          <div class="card shadow p-3">
+            <h6>Pendientes</h6>
+            <h3 id="pendientes">Cargando...</h3>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card shadow mt-4 p-3">
+        <h5>Actividad reciente</h5>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Estudiante</th>
+              <th>Tipo</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody id="actividadReciente">
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">
+                Cargando actividad reciente...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div id="contenidoDinamico"></div>
@@ -454,7 +394,6 @@
     }
 
     async function cargarDatosDashboard() {
-      const fechaDashboard = document.getElementById("dashboardFecha");\n      if (fechaDashboard) fechaDashboard.textContent = new Intl.DateTimeFormat("es-EC", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
       try {
         // Cargar total estudiantes
         const resTotal = await fetch("/api/estudiantes/total");
