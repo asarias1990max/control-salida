@@ -18,7 +18,7 @@ function leerCSV(buffer) {
     const registros = [];
     const stream = Readable.from(buffer.toString("utf8"));
     stream
-      .pipe(csv({ mapHeaders: ({ header }) => String(header || "").replace(/^\\uFEFF/, "").trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase() }))
+      .pipe(csv({ mapHeaders: ({ header }) => String(header || "").replace(/^\uFEFF/, "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase() }))
       .on("data", row => registros.push(row))
       .on("end", () => resolve(registros))
       .on("error", reject);
