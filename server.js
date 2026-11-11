@@ -62,13 +62,20 @@ app.use("/api", (req, res, next) => {
     return res.status(403).json({ ok: false, message: "Tu cuenta solo tiene acceso al Dashboard de Salidas." });
   }
   const reglas = [
-    { permiso: "salida_lower", patron: /^\/salidas\/(lower|salida-lower|estudiantes-lower)/ },
-    { permiso: "salida_middle", patron: /^\/salidas\/(middle|salida-middle|estudiantes-middle)/ },
-    { permiso: "salida_high", patron: /^\/salidas\/(high|salida-high|estudiantes-high)/ },
+    { permiso: "salida_lower", patron: /^\/estudiantes\/(lower|paralelos)?/ },
+    { permiso: "salida_middle", patron: /^\/estudiantes\/(middle|paralelos)?/ },
+    { permiso: "salida_high", patron: /^\/estudiantes\/(high|paralelos)?/ },
     { permiso: "importar_data", patron: /^\/importaciones/ },
-    { permiso: "reporte_salidas", patron: /^\/salidas\/(reporte|historial|actividad|hoy|pendientes)/ },
+    { permiso: "reporte_salidas", patron: /^\/salidas\/(reporte|actividad)/ },
     { permiso: "dashboard_salidas", patron: /^\/salidas\/dashboard-/ }
   ];
+  const puedeRegistrarSalida = req.method === "POST" && ruta === "/salidas" &&
+    ["salida_lower", "salida_middle", "salida_high"].some(p => permisos.includes(p));
+  const puedeConsultarOperacion = ["GET /salidas/hoy", "GET /salidas/pendientes", "GET /salidas/actividad"].includes(req.method + " " + ruta) &&
+    ["salida_lower", "salida_middle", "salida_high"].some(p => permisos.includes(p));
+  const puedeConsultarEstudiantes = ruta.startsWith("/estudiantes") &&
+    ["salida_lower", "salida_middle", "salida_high"].some(p => permisos.includes(p));
+  if (puedeRegistrarSalida || puedeConsultarOperacion || puedeConsultarEstudiantes) return next();
   if (reglas.some(regla => permisos.includes(regla.permiso) && regla.patron.test(ruta))) return next();
   return res.status(403).json({ ok: false, message: "No tienes permisos para realizar esta operación." });
 });
