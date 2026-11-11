@@ -499,6 +499,9 @@
           if (vista === "dashboard_salidas") {
             inicializarDashboardSalidas();
           }
+          if (vista === "usuarios" && esAdministrador) {
+            cargarUsuariosSistema();
+          }
         })
         .catch(err => {
           console.error(err);
