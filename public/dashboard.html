@@ -284,7 +284,7 @@
     let estudiantesMiddleData = [];
     let estudiantesHighData = [];
 
-    const usuario = JSON.parse(localStorage.getItem("usuario"));
+    let usuario = JSON.parse(localStorage.getItem("usuario"));
 
     if (!usuario) {
       window.location.href = "/";
@@ -1602,6 +1602,49 @@ async function cargarEstudiantesLower() {
     let avisoInactividadVisible = false;
     let intervaloInactividad = null;
     let ultimoRegistroActividad = 0;
+    let ultimoHeartbeatServidor = 0;
+
+    async function notificarActividadServidor() {
+      if (!localStorage.getItem("usuario")) return;
+      const ahora = Date.now();
+      if (ahora - ultimoHeartbeatServidor < 30000) return;
+      ultimoHeartbeatServidor = ahora;
+      try {
+        const response = await fetch("/api/auth/activity", {
+          method: "POST",
+          headers: { Accept: "application/json" },
+          cache: "no-store"
+        });
+        if (response.status === 401) {
+          localStorage.removeItem("usuario");
+          localStorage.removeItem(CLAVE_ULTIMA_ACTIVIDAD);
+          window.location.replace("/");
+        }
+      } catch (error) {
+        console.warn("No se pudo renovar la actividad de la sesión:", error);
+      }
+    }
+
+    async function validarSesionServidor() {
+      try {
+        const response = await fetch("/api/auth/session", {
+          headers: { Accept: "application/json" },
+          cache: "no-store"
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok || !result.user) throw new Error("SESSION_EXPIRED");
+        usuario = result.user;
+        localStorage.setItem("usuario", JSON.stringify(usuario));
+        const nombre = document.getElementById("userName");
+        if (nombre) nombre.innerText = "👤 " + (usuario.nombre || usuario.email || "Usuario");
+        return true;
+      } catch (error) {
+        localStorage.removeItem("usuario");
+        localStorage.removeItem(CLAVE_ULTIMA_ACTIVIDAD);
+        window.location.replace("/");
+        return false;
+      }
+    }
 
     function obtenerUltimaActividad() {
       return Number(localStorage.getItem(CLAVE_ULTIMA_ACTIVIDAD)) || Date.now();
@@ -1614,6 +1657,7 @@ async function cargarEstudiantesLower() {
       ultimoRegistroActividad = ahora;
       localStorage.setItem(CLAVE_ULTIMA_ACTIVIDAD, String(ahora));
       ocultarAvisoInactividad();
+      notificarActividadServidor();
     }
 
     function mostrarAvisoInactividad(segundos) {
@@ -1682,8 +1726,13 @@ async function cargarEstudiantesLower() {
       intervaloInactividad = window.setInterval(comprobarInactividad, 1000);
     }
 
-    function logout(porInactividad = false) {
+    async function logout(porInactividad = false) {
       if (intervaloInactividad) window.clearInterval(intervaloInactividad);
+      try {
+        await fetch("/api/auth/logout", { method: "POST", headers: { Accept: "application/json" } });
+      } catch (error) {
+        console.warn("No se pudo notificar el cierre de sesión al servidor:", error);
+      }
       localStorage.removeItem("usuario");
       localStorage.removeItem(CLAVE_ULTIMA_ACTIVIDAD);
       if (porInactividad) {
@@ -1692,8 +1741,11 @@ async function cargarEstudiantesLower() {
       window.location.href = "/";
     }
 
-    iniciarControlInactividad();
-    mostrarInicio();
+    validarSesionServidor().then(sesionValida => {
+      if (!sesionValida) return;
+      iniciarControlInactividad();
+      mostrarInicio();
+    });
 
 function renderTablaLower(lista) {
   const tabla = document.getElementById("tablaEstudiantesLower");
