@@ -1596,7 +1596,7 @@ async function cargarEstudiantesLower() {
     }
 
     // Cierre automático de sesión después de 15 minutos sin actividad.
-    const TIEMPO_INACTIVIDAD_MS = 15 * 60 * 1000;
+    const TIEMPO_INACTIVIDAD_MS = 5 * 60 * 1000;
     const AVISO_CIERRE_MS = 60 * 1000;
     const CLAVE_ULTIMA_ACTIVIDAD = "controlSalida_ultimaActividad";
     let avisoInactividadVisible = false;
@@ -1736,7 +1736,7 @@ async function cargarEstudiantesLower() {
       localStorage.removeItem("usuario");
       localStorage.removeItem(CLAVE_ULTIMA_ACTIVIDAD);
       if (porInactividad) {
-        alert("Tu sesión se cerró automáticamente por 15 minutos de inactividad.");
+        alert("Tu sesión se cerró automáticamente por 5 minutos de inactividad.");
       }
       window.location.href = "/";
     }
