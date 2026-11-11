@@ -35,9 +35,28 @@ export async function login(req, res) {
 ========================= */
 export async function googleLogin(req, res) {
   try {
-    const { google_id, email, nombre, avatar } = req.body;
+    const { credential } = req.body || {};
+    if (!credential || !process.env.GOOGLE_CLIENT_ID) {
+      return res.status(401).json({ ok: false, message: "No se pudo validar la cuenta de Google." });
+    }
 
-    console.log('Google login attempt:', { google_id, email, nombre });
+    // Validar la credencial directamente con Google; nunca confiar en el correo enviado por el navegador.
+    const tokenInfoResponse = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential));
+    if (!tokenInfoResponse.ok) {
+      return res.status(401).json({ ok: false, message: "La sesión de Google no es válida. Intenta nuevamente." });
+    }
+    const claims = await tokenInfoResponse.json();
+    if (claims.aud !== process.env.GOOGLE_CLIENT_ID || claims.email_verified !== "true" || !claims.email || !claims.sub || !claims.name) {
+      return res.status(401).json({ ok: false, message: "No se pudo verificar tu cuenta institucional de Google." });
+    }
+
+    const google_id = claims.sub;
+    const email = String(claims.email).trim().toLowerCase();
+    const nombre = claims.name;
+    const avatar = claims.picture || "";
+    const esUsuarioDashboardSalidas = email === "fsaltos@einstein.k12.ec";
+
+    console.log("Google login attempt:", { google_id, email, nombre });
 
     if (!email || !nombre) {
       return res.status(400).json({
@@ -55,6 +74,10 @@ export async function googleLogin(req, res) {
     });
 
     const usuarioSeguro = usuarioPublico(usuario);
+    if (esUsuarioDashboardSalidas) {
+      usuarioSeguro.rol = "dashboard_salidas";
+      usuarioSeguro.permisos_menu = ["dashboard_salidas"];
+    }
     crearSesion(res, usuarioSeguro);
 
     return res.json({
