@@ -7,6 +7,7 @@ import authRoutes from "./routes/authRoutes.js";
 import importacionesRoutes from "./routes/importacionesRoutes.js";
 import estudiantesRoutes from "./routes/estudiantesRoutes.js";
 import salidasRoutes from "./routes/salidasRoutes.js";
+import usuariosRoutes from "./routes/usuariosRoutes.js";
 import { obtenerDashboardEventosHik, sincronizarNivelesYAsignacionesHik } from "./services/hikCentralService.js";
 import { exigirSesion, obtenerSesion } from "./services/sessionService.js";
 // import reportesRoutes from "./routes/reportesRoutes.js";
@@ -39,6 +40,38 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api", authRoutes);
 // Todas las APIs de la aplicación requieren una sesión válida, salvo las rutas públicas de auth.
 app.use("/api", exigirSesion);
+app.use("/api", (req, res, next) => {
+  const usuario = req.usuarioSesion;
+  if (!usuario) return next();
+  const permisos = Array.isArray(usuario.permisos_menu) ? usuario.permisos_menu : [];
+  const ruta = req.path.replace(/\/+$/, "") || "/";
+  if (ruta.startsWith("/usuarios") && usuario.rol !== "admin") {
+    return res.status(403).json({ ok: false, message: "Solo un administrador puede administrar usuarios." });
+  }
+  if (usuario.rol === "admin") return next();
+  if (usuario.rol === "dashboard_salidas") {
+    const permitidas = new Set([
+      "GET /salidas/dashboard-resumen-diario",
+      "GET /salidas/dashboard-historial",
+      "GET /salidas/dashboard-niveles-estudiantes",
+      "GET /salidas/dashboard-configuracion",
+      "GET /salidas/dashboard-puertas",
+      "GET /salidas/dashboard-eventos"
+    ]);
+    if (permitidas.has(req.method + " " + ruta)) return next();
+    return res.status(403).json({ ok: false, message: "Tu cuenta solo tiene acceso al Dashboard de Salidas." });
+  }
+  const reglas = [
+    { permiso: "salida_lower", patron: /^\/salidas\/(lower|salida-lower|estudiantes-lower)/ },
+    { permiso: "salida_middle", patron: /^\/salidas\/(middle|salida-middle|estudiantes-middle)/ },
+    { permiso: "salida_high", patron: /^\/salidas\/(high|salida-high|estudiantes-high)/ },
+    { permiso: "importar_data", patron: /^\/importaciones/ },
+    { permiso: "reporte_salidas", patron: /^\/salidas\/(reporte|historial|actividad|hoy|pendientes)/ },
+    { permiso: "dashboard_salidas", patron: /^\/salidas\/dashboard-/ }
+  ];
+  if (reglas.some(regla => permisos.includes(regla.permiso) && regla.patron.test(ruta))) return next();
+  return res.status(403).json({ ok: false, message: "No tienes permisos para realizar esta operación." });
+});
 
 // Cuenta de consulta: únicamente puede consumir los endpoints de lectura del Dashboard de Salidas.
 app.use("/api", (req, res, next) => {
@@ -64,6 +97,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api/importaciones", importacionesRoutes);
 app.use("/api/estudiantes", estudiantesRoutes);
 app.use("/api/salidas", salidasRoutes);
+app.use("/api/usuarios", usuariosRoutes);
 // app.use("/api/reportes", reportesRoutes);
 
 /* =========================
