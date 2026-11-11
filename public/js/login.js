@@ -60,13 +60,7 @@ function handleGoogleCredentialResponse(response) {
   }
 
   try {
-    const payload = decodeJwtResponse(response.credential);
-    handleGoogleAuthData({
-      google_id: payload.sub,
-      email: payload.email,
-      nombre: payload.name,
-      avatar: payload.picture
-    });
+    handleGoogleAuthData({ credential: response.credential });
   } catch (error) {
     console.error('No se pudo procesar la respuesta de Google:', error);
     setGoogleStatus('No se pudo procesar la respuesta de Google.', 'danger');
