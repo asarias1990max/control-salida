@@ -8,6 +8,7 @@ import importacionesRoutes from "./routes/importacionesRoutes.js";
 import estudiantesRoutes from "./routes/estudiantesRoutes.js";
 import salidasRoutes from "./routes/salidasRoutes.js";
 import { obtenerDashboardEventosHik, sincronizarNivelesYAsignacionesHik } from "./services/hikCentralService.js";
+import { exigirSesion, obtenerSesion } from "./services/sessionService.js";
 // import reportesRoutes from "./routes/reportesRoutes.js";
 
 dotenv.config();
@@ -36,6 +37,8 @@ app.use(express.static(path.join(__dirname, "public")));
    RUTAS API
 ========================= */
 app.use("/api", authRoutes);
+// Todas las APIs de la aplicación requieren una sesión válida, salvo las rutas públicas de auth.
+app.use("/api", exigirSesion);
 app.use("/api/importaciones", importacionesRoutes);
 app.use("/api/estudiantes", estudiantesRoutes);
 app.use("/api/salidas", salidasRoutes);
@@ -52,6 +55,7 @@ app.get("/", (req, res) => {
 
 // DASHBOARD
 app.get("/dashboard", (req, res) => {
+  if (!obtenerSesion(req)) return res.redirect("/");
   res.sendFile(path.join(__dirname, "public/dashboard.html"));
 });
 
