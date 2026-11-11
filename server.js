@@ -45,14 +45,14 @@ app.use("/api", (req, res, next) => {
   if (req.usuarioSesion?.rol !== "dashboard_salidas") return next();
 
   const rutasPermitidas = new Set([
-    "GET /api/salidas/dashboard-resumen-diario",
-    "GET /api/salidas/dashboard-historial",
-    "GET /api/salidas/dashboard-niveles-estudiantes",
-    "GET /api/salidas/dashboard-configuracion",
-    "GET /api/salidas/dashboard-puertas",
-    "GET /api/salidas/dashboard-eventos"
+    "GET /salidas/dashboard-resumen-diario",
+    "GET /salidas/dashboard-historial",
+    "GET /salidas/dashboard-niveles-estudiantes",
+    "GET /salidas/dashboard-configuracion",
+    "GET /salidas/dashboard-puertas",
+    "GET /salidas/dashboard-eventos"
   ]);
-  const ruta = req.path.replace(/\\/+$/, "") || "/";
+  const ruta = req.path.replace(/\/+$/, "") || "/";
   if (rutasPermitidas.has(req.method + " " + ruta)) return next();
 
   return res.status(403).json({
