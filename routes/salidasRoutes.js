@@ -115,7 +115,9 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     const esEntrada = evento => /^(ce|entrada|entry|ingreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
     // Puertas exactas que alimentan exclusivamente el indicador "Con entrada y sin salida".
     const puertasEntradaIndicador = new Set(["ce1", "ce2", "ce3", "cet1"]);
+    const puertasSalidaIndicador = new Set(["cs1", "cs2", "cs3", "cst1"]);
     const esEntradaIndicador = evento => [evento.puerta_nombre, evento.puerta_codigo].some(puerta => puertasEntradaIndicador.has(normalizar(puerta)));
+    const esSalidaIndicador = evento => [evento.puerta_nombre, evento.puerta_codigo].some(puerta => puertasSalidaIndicador.has(normalizar(puerta)));
     const esSalida = evento => /^(cs|salida|exit|egreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
     const configs = configuracionResult.data || [];
     const configPorNivel = new Map(configs.map(x => [String(x.nivel_acceso || "").trim().toLowerCase(), x]));
@@ -158,6 +160,13 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       const entradasIndicadorConcedidas = eventos.filter(esEntradaIndicador).filter(resultadoConcedido);
       const salidasConcedidas = salidas.filter(resultadoConcedido);
       const salidasConcedidasDia = eventosDia.filter(esSalida).filter(resultadoConcedido);
+      // Este indicador se calcula con los eventos de todo el día, sin limitarse al horario del filtro.
+      // Se conserva la primera entrada CE y la última salida CS concedidas del mismo estudiante.
+      const ordenarPorFechaEvento = lista => [...lista].sort((a, b) => new Date(a.fecha_evento).getTime() - new Date(b.fecha_evento).getTime());
+      const entradasIndicadorDia = ordenarPorFechaEvento(eventosDia.filter(esEntradaIndicador).filter(resultadoConcedido));
+      const salidasIndicadorDia = ordenarPorFechaEvento(eventosDia.filter(esSalidaIndicador).filter(resultadoConcedido));
+      const primeraEntradaCompleta = entradasIndicadorDia[0] || null;
+      const ultimaSalidaCompleta = salidasIndicadorDia[salidasIndicadorDia.length - 1] || null;
       const entradasError = entradas.filter(e => !resultadoConcedido(e));
       const salidasError = salidas.filter(e => !resultadoConcedido(e));
       const puertasPermitidas = niveles.flatMap(n => n.puertas || []).map(normalizar).filter(Boolean);
@@ -180,7 +189,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       const flags = {
         entrada_concedida: entradasConcedidas.length > 0,
         salida_concedida: salidasConcedidas.length > 0,
-        entrada_y_salida: entradasConcedidas.length > 0 && salidasConcedidas.length > 0,
+        entrada_y_salida: Boolean(primeraEntradaCompleta && ultimaSalidaCompleta),
         // No marcar a todos como ausentes si la sincronización aún no ha cargado eventos.
         ausente: Boolean(sincronizacionEventos) && hayEventosSincronizados && !sincronizandoEventos && !(sincronizacionEventos?.advertencias?.length) && entradas.length === 0 && salidas.length === 0,
         // Si existe un acceso concedido en esa dirección, no clasificar al estudiante
@@ -212,6 +221,12 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         hora_salida_indicador: salidasConcedidasDia[0] ? horaLocal(salidasConcedidasDia[0].fecha_evento) : null,
         puerta_salida_indicador: salidasConcedidasDia[0]?.puerta_nombre || salidasConcedidasDia[0]?.puerta_codigo || "",
         resultado_salida_indicador: textoResultadoEvento(salidasConcedidasDia[0]),
+        hora_entrada_completa: primeraEntradaCompleta ? horaLocal(primeraEntradaCompleta.fecha_evento) : null,
+        puerta_entrada_completa: primeraEntradaCompleta?.puerta_nombre || primeraEntradaCompleta?.puerta_codigo || "",
+        resultado_entrada_completa: textoResultadoEvento(primeraEntradaCompleta),
+        hora_salida_completa: ultimaSalidaCompleta ? horaLocal(ultimaSalidaCompleta.fecha_evento) : null,
+        puerta_salida_completa: ultimaSalidaCompleta?.puerta_nombre || ultimaSalidaCompleta?.puerta_codigo || "",
+        resultado_salida_completa: textoResultadoEvento(ultimaSalidaCompleta),
         hora_salida: primeraSalida ? horaLocal(primeraSalida.fecha_evento) : null,
         puerta_salida: primeraSalida?.puerta_nombre || primeraSalida?.puerta_codigo || "",
         resultado_salida: textoResultadoEvento(primeraSalida),
