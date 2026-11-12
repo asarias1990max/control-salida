@@ -869,7 +869,15 @@
           botonPdf.addEventListener("click", event => { event.stopPropagation(); descargarPDFIndicadorSalidasHik(item.key); });
           tdPdf.append(botonPdf); tr.append(tdPdf);
           tr.style.cursor = "pointer"; tr.title = "Seleccionar este indicador";
-          tr.addEventListener("click", () => filtrarResumenDiarioSalidasHik(item.key)); indicadores.append(tr);
+          tr.addEventListener("click", () => {
+            filtrarResumenDiarioSalidasHik(item.key);
+            const selectorDetalle = document.getElementById("dsFiltroIndicador");
+            const seccionDetalle = selectorDetalle?.closest(".ds-section-card");
+            if (seccionDetalle) {
+              seccionDetalle.scrollIntoView({ behavior: "smooth", block: "start" });
+              selectorDetalle?.focus({ preventScroll: true });
+            }
+          }); indicadores.append(tr);
         });
         if (filtro) {
           const previous = filtro.value;
