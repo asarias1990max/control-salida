@@ -688,7 +688,7 @@
           row.nombres || "",
           row.curso || "—",
           textoEventoAcceso(seleccionado === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, seleccionado === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, seleccionado === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
-          textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida),
+          textoEventoAcceso(seleccionado === "entrada_sin_salida" ? row.puerta_salida_indicador : row.puerta_salida, seleccionado === "entrada_sin_salida" ? row.hora_salida_indicador : row.hora_salida, seleccionado === "entrada_sin_salida" ? row.resultado_salida_indicador : row.resultado_salida),
           (row.niveles || []).join(", ") || "—",
           row.configuracion?.horario || "—",
           row.configuracion?.puertas || "—"
@@ -744,7 +744,7 @@
       filas.forEach(row => {
         const valores = [row.apellidos || "", row.nombres || "", row.curso || "—",
           textoEventoAcceso(indicadorKey === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, indicadorKey === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, indicadorKey === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
-          textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida)];
+          textoEventoAcceso(indicadorKey === "entrada_sin_salida" ? row.puerta_salida_indicador : row.puerta_salida, indicadorKey === "entrada_sin_salida" ? row.hora_salida_indicador : row.hora_salida, indicadorKey === "entrada_sin_salida" ? row.resultado_salida_indicador : row.resultado_salida)];
         const celdas = valores.map((valor, i) => doc.splitTextToSize(String(valor), columnas[i].ancho));
         const alto = Math.max(5, ...celdas.map(lines => lines.length * 3.2));
         if (y + alto > pageHeight - 18) {
