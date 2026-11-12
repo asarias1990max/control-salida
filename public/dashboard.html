@@ -814,7 +814,7 @@
         : "Consulta los registros de la fecha dentro del horario seleccionado.";
     }
 
-    async function cargarResumenDiarioSalidasHik(soloLectura = false) {
+    async function cargarResumenDiarioSalidasHik(soloLectura = false, enfocarIndicadores = false) {
       const cuerpo = document.getElementById("dsTablaResumenDiario");
       const estado = document.getElementById("dsResumenEstado");
       const indicadores = document.getElementById("dsResumenIndicadores");
@@ -892,7 +892,15 @@
           " · Eventos guardados: " + Number(fuentesHik.eventosHikCentral || 0) +
           (result.sincronizando ? " · Consultando HikCentral…" : "");
         estado.className = "small mb-2 " + (advertenciasHik.length && !result.sincronizando ? "text-danger" : "text-muted");
-        estado.textContent = estadoBaseHik + (advertenciasHik.length ? " · " + advertenciasHik.join(" | ") : "");
+        estado.textContent = estadoBaseHik + (advertenciasHik.length ? " · " + advertenciasHik.join(" | ") : "");        if (enfocarIndicadores) {
+          const tablaIndicadores = document.getElementById("dsResumenIndicadores");
+          const seccionIndicadores = tablaIndicadores?.closest(".ds-section-card");
+          if (seccionIndicadores) {
+            seccionIndicadores.setAttribute("tabindex", "-1");
+            seccionIndicadores.scrollIntoView({ behavior: "smooth", block: "start" });
+            seccionIndicadores.focus({ preventScroll: true });
+          }
+        }
         // Si la sincronización sigue en curso, refrescar desde Supabase cuando termine para mostrar los datos actuales.
         if (result.sincronizando) {
           window.setTimeout(() => {
