@@ -139,27 +139,6 @@ app.use("/api", (req, res, next) => {
   return res.status(403).json({ ok: false, message: "No tienes permisos para realizar esta operación." });
 });
 
-// Cuenta de consulta: únicamente puede consumir los endpoints de lectura del Dashboard de Salidas.
-app.use("/api", (req, res, next) => {
-  if (req.usuarioSesion?.rol !== "dashboard_salidas") return next();
-
-  const rutasPermitidas = new Set([
-    "GET /salidas/dashboard-resumen-diario",
-    "GET /salidas/dashboard-historial",
-    "GET /salidas/dashboard-niveles-estudiantes",
-    "GET /salidas/dashboard-configuracion",
-    "GET /salidas/dashboard-puertas",
-    "GET /salidas/dashboard-eventos"
-  ]);
-  const ruta = req.path.replace(/\/+$/, "") || "/";
-  if (rutasPermitidas.has(req.method + " " + ruta)) return next();
-
-  return res.status(403).json({
-    ok: false,
-    message: "Tu cuenta solo tiene acceso al Dashboard de Salidas."
-  });
-});
-
 app.use("/api/importaciones", importacionesRoutes);
 app.use("/api/estudiantes", estudiantesRoutes);
 app.use("/api/salidas", salidasRoutes);
