@@ -168,6 +168,15 @@
     background: #fff;
   }
   .ds-dashboard .ds-filter-control { width: min(100%, 490px); }
+  .ds-dashboard .ds-entry-option {
+    min-width: min(100%, 330px);
+    padding: .65rem .85rem;
+    border: 1px solid #e2e9f5;
+    border-radius: 12px;
+    background: #f8faff;
+  }
+  .ds-dashboard .ds-entry-option .form-check-input { cursor: pointer; }
+  .ds-dashboard .ds-entry-option .form-check-label { color: #344258; cursor: pointer; }
   .ds-dashboard #dsConteoFiltro {
     color: #526da8;
     font-size: .82rem;
@@ -271,6 +280,13 @@
         <select id="dsFiltroIndicador" class="form-select" onchange="filtrarResumenDiarioSalidasHik()">
           <option value="">Selecciona un indicador</option>
         </select>
+      </div>
+      <div id="dsOpcionesEntradaSinSalida" class="ds-entry-option" hidden>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" role="switch" id="dsIncluirConSalida" onchange="cargarResumenDiarioSalidasHik()">
+          <label class="form-check-label small fw-semibold" for="dsIncluirConSalida">Incluir estudiantes con salida concedida</label>
+        </div>
+        <div class="small text-muted mt-1">Desactivado: solo muestra estudiantes sin salida concedida.</div>
       </div>
       <div id="dsConteoFiltro" aria-live="polite"></div>
     </div>
