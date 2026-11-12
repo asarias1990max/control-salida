@@ -797,7 +797,7 @@
       const safeKey = String(item.key).replace(/[^a-z0-9_-]/gi, "_");
       doc.save("salidas_" + safeKey + "_" + (fecha || "consulta") + ".pdf");
     }
-    let modoConsultaSalidasHik = "horario";
+    let modoConsultaSalidasHik = "todos";
 
     function cambiarModoConsultaSalidasHik(modo) {
       modoConsultaSalidasHik = modo === "todos" ? "todos" : "horario";
