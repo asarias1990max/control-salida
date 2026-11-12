@@ -171,6 +171,52 @@
     background: #fff;
   }
   .ds-dashboard .ds-filter-control { width: min(100%, 490px); }
+  .ds-dashboard .ds-filter-control {
+    width: min(100%, 490px);
+    padding: .15rem 0;
+  }
+  .ds-dashboard .ds-filter-control .form-label {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin-bottom: .55rem !important;
+    color: #405578;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .075em;
+  }
+  .ds-dashboard .ds-filter-control .form-label i {
+    display: inline-grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+    color: #315bc0;
+    background: #eaf0ff;
+    font-size: .9rem;
+  }
+  .ds-dashboard .ds-filter-control .ds-indicator-select {
+    min-height: 44px;
+    padding: .55rem 2.65rem .55rem .9rem;
+    border: 1px solid #d6e0f1;
+    border-radius: 13px;
+    color: #263b60;
+    background-color: #fbfcff;
+    box-shadow: 0 2px 7px rgba(35, 67, 125, .045);
+    font-size: .9rem;
+    font-weight: 650;
+    transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+    cursor: pointer;
+  }
+  .ds-dashboard .ds-filter-control .ds-indicator-select:hover {
+    border-color: #a9bce5;
+    background-color: #fff;
+  }
+  .ds-dashboard .ds-filter-control .ds-indicator-select:focus {
+    border-color: #6688d5;
+    background-color: #fff;
+    box-shadow: 0 0 0 .22rem rgba(49, 91, 192, .13);
+  }
   .ds-dashboard .ds-entry-option {
     min-width: min(100%, 330px);
     padding: .65rem .85rem;
@@ -279,8 +325,8 @@
     </div>
     <div class="ds-filter-panel">
       <div class="ds-filter-control">
-        <label for="dsFiltroIndicador" class="form-label mb-2">VER LISTADO DE</label>
-        <select id="dsFiltroIndicador" class="form-select" onchange="filtrarResumenDiarioSalidasHik()">
+        <label for="dsFiltroIndicador" class="form-label mb-2"><i class="bi bi-funnel-fill"></i> VER LISTADO DE</label>
+        <select id="dsFiltroIndicador" class="form-select ds-indicator-select" onchange="filtrarResumenDiarioSalidasHik()">
           <option value="">Selecciona un indicador</option>
         </select>
       </div>
