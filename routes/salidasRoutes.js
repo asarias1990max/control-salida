@@ -200,7 +200,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         error_salida: salidasError.length > 0 && salidasConcedidas.length === 0,
         fuera_horario: salidasFueraHorario.length > 0,
         entrada_sin_salida: entradasIndicadorConcedidas.length > 0 && (incluirSalidasConcedidas || salidasConcedidasDia.length === 0),
-        salida_sin_entrada: salidasConcedidas.length > 0 && entradasConcedidas.length === 0,
+        salida_sin_entrada: salidasIndicadorDia.length > 0 && entradasIndicadorDia.length === 0,
         puerta_equivocada: salidasConcedidasPuertaIncorrecta.length > 0
       };
       return {
