@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 // Sesiones de proceso con expiración deslizante. El identificador nunca se guarda
 // en localStorage: viaja únicamente en una cookie HttpOnly.
-const DURACION_INACTIVIDAD_MS = 5 * 60 * 1000;
+const DURACION_INACTIVIDAD_MS = 15 * 60 * 1000;
 const NOMBRE_COOKIE = "control_salida_sid";
 const sesiones = new Map();
 
