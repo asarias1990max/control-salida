@@ -1,14 +1,26 @@
 import { supabase } from "../config/supabaseClient.js";
 
-export async function getUserByCredentials(email, password) {
+export async function getUserByCredentials(email) {
   const { data, error } = await supabase
     .from("usuarios")
     .select("*")
     .eq("email", String(email || "").trim().toLowerCase())
-    .eq("password", password)
     .eq("estado", "activo")
-    .single();
+    .maybeSingle();
   if (error || !data) return null;
+  return data;
+}
+
+export async function setUserPassword(userId, passwordHash) {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .update({ password: passwordHash, updated_at: new Date().toISOString() })
+    .eq("id", userId)
+    .eq("estado", "activo")
+    .select("id,email,rol,estado")
+    .single();
+
+  if (error) throw error;
   return data;
 }
 
