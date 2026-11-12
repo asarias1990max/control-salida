@@ -125,11 +125,7 @@
     <h1 class="login-welcome">Bienvenido</h1>
     <p class="login-subtitle">Accede al sistema de control de entradas y salidas</p>
 
-    <div id="googleSignInButton" class="w-100 mb-2"></div>
-    <div id="googleStatus" class="text-muted small mb-3">Preparando acceso con Google...</div>
-
-    <div class="login-divider"><hr><span class="small">o</span><hr></div>
-
+    
     <form onsubmit="event.preventDefault(); login();">
       <div class="input-group mb-3">
         <span class="input-group-text bg-white" style="border-color:var(--login-line);border-radius:9px 0 0 9px"><i class="bi bi-person"></i></span>
@@ -144,6 +140,11 @@
         <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar sesión
       </button>
     </form>
+
+    <div class="login-divider"><hr><span class="small">o</span><hr></div>
+
+    <div id="googleSignInButton" class="w-100 mb-2"></div>
+    <div id="googleStatus" class="text-muted small mb-3">Preparando acceso con Google...</div>
 
     <div class="login-footer">© 2026 Sistema Institucional · Colegio Einstein</div>
   </main>
