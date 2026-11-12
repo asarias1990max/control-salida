@@ -26,7 +26,7 @@ export async function login(req, res) {
     }
 
     const usuarioSeguro = usuarioPublico(usuario);
-    crearSesion(res, usuarioSeguro);
+    await crearSesion(res, usuarioSeguro);
     return res.json({ ok: true, message: "Login correcto", user: usuarioSeguro });
   } catch (error) {
     console.error("Error en login tradicional:", error);
@@ -91,7 +91,7 @@ export async function googleLogin(req, res) {
     }
 
     const usuarioSeguro = usuarioPublico(usuario);
-    crearSesion(res, usuarioSeguro);
+    await crearSesion(res, usuarioSeguro);
     return res.json({ ok: true, message: "Login con Google correcto", user: usuarioSeguro });
   } catch (error) {
     console.error("Error en login con Google:", error);
