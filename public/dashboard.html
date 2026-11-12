@@ -660,6 +660,8 @@
       const conteo = document.getElementById("dsConteoFiltro");
       if (!cuerpo) return;
       const itemIndicador = indicadoresDiariosData.find(item => item.key === seleccionado);
+      const opcionesEntrada = document.getElementById("dsOpcionesEntradaSinSalida");
+      if (opcionesEntrada) opcionesEntrada.hidden = seleccionado !== "entrada_sin_salida";
       const rows = seleccionado
         ? resumenDiarioSalidasData.filter(row => row.flags && row.flags[seleccionado])
         : [];
@@ -685,7 +687,7 @@
           row.apellidos || "",
           row.nombres || "",
           row.curso || "—",
-          textoEventoAcceso(row.puerta_entrada, row.hora_entrada, row.resultado_entrada),
+          textoEventoAcceso(seleccionado === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, seleccionado === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, seleccionado === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
           textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida),
           (row.niveles || []).join(", ") || "—",
           row.configuracion?.horario || "—",
@@ -741,7 +743,7 @@
       let y = encabezado();
       filas.forEach(row => {
         const valores = [row.apellidos || "", row.nombres || "", row.curso || "—",
-          textoEventoAcceso(row.puerta_entrada, row.hora_entrada, row.resultado_entrada),
+          textoEventoAcceso(indicadorKey === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, indicadorKey === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, indicadorKey === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
           textoEventoAcceso(row.puerta_salida, row.hora_salida, row.resultado_salida)];
         const celdas = valores.map((valor, i) => doc.splitTextToSize(String(valor), columnas[i].ancho));
         const alto = Math.max(5, ...celdas.map(lines => lines.length * 3.2));
@@ -799,7 +801,8 @@
       try {
         const parametroLectura = soloLectura ? "&soloLectura=1" : "";
         const parametrosHora = "&modo=" + encodeURIComponent(modoConsultaSalidasHik) + "&hora_inicio=" + encodeURIComponent(horaInicio) + "&hora_fin=" + encodeURIComponent(horaFin);
-        const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha) + parametrosHora + parametroLectura, { headers: { Accept: "application/json" } });
+        const incluirSalidas = document.getElementById("dsIncluirConSalida")?.checked ? "&incluirSalidasConcedidas=1" : "";
+        const response = await fetch("/api/salidas/dashboard-resumen-diario?fecha=" + encodeURIComponent(fecha) + parametrosHora + incluirSalidas + parametroLectura, { headers: { Accept: "application/json" } });
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.message || "No se pudo generar el control diario.");
         resumenDiarioSalidasData = Array.isArray(result.data) ? result.data : [];
