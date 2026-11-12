@@ -155,9 +155,14 @@ app.get("/", (req, res) => {
 });
 
 // DASHBOARD
-app.get("/dashboard", (req, res) => {
-  if (!obtenerSesion(req)) return res.redirect("/");
-  res.sendFile(path.join(__dirname, "public/dashboard.html"));
+app.get("/dashboard", async (req, res) => {
+  try {
+    if (!(await obtenerSesion(req))) return res.redirect("/");
+    return res.sendFile(path.join(__dirname, "public/dashboard.html"));
+  } catch (error) {
+    console.error("No se pudo validar la sesión para abrir el dashboard:", error.message);
+    return res.status(503).send("No se pudo validar tu sesión. Recarga la página en unos segundos.");
+  }
 });
 
 /* =========================
