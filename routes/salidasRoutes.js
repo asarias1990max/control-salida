@@ -133,6 +133,13 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       return horaEvento >= horaInicio && horaEvento <= horaFin;
     });
     const eventosPorEstudiante = new Map();
+    const eventosPorEstudianteDia = new Map();
+    (eventosResult.data || []).forEach(evento => {
+      if (!evento.estudiante_id) return;
+      const lista = eventosPorEstudianteDia.get(evento.estudiante_id) || [];
+      lista.push(evento);
+      eventosPorEstudianteDia.set(evento.estudiante_id, lista);
+    });
     eventosEnHorario.forEach(evento => {
       if (!evento.estudiante_id) return;
       const lista = eventosPorEstudiante.get(evento.estudiante_id) || [];
@@ -144,11 +151,13 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     const resumen = (estudiantesResult.data || []).map(estudiante => {
       const niveles = asignacionesPorEstudiante.get(estudiante.id) || [];
       const eventos = eventosPorEstudiante.get(estudiante.id) || [];
+      const eventosDia = eventosPorEstudianteDia.get(estudiante.id) || [];
       const entradas = eventos.filter(esEntrada);
       const salidas = eventos.filter(esSalida);
       const entradasConcedidas = entradas.filter(resultadoConcedido);
       const entradasIndicadorConcedidas = eventos.filter(esEntradaIndicador).filter(resultadoConcedido);
       const salidasConcedidas = salidas.filter(resultadoConcedido);
+      const salidasConcedidasDia = eventosDia.filter(esSalida).filter(resultadoConcedido);
       const entradasError = entradas.filter(e => !resultadoConcedido(e));
       const salidasError = salidas.filter(e => !resultadoConcedido(e));
       const puertasPermitidas = niveles.flatMap(n => n.puertas || []).map(normalizar).filter(Boolean);
@@ -179,7 +188,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         error_entrada: entradasError.length > 0 && entradasConcedidas.length === 0,
         error_salida: salidasError.length > 0 && salidasConcedidas.length === 0,
         fuera_horario: salidasFueraHorario.length > 0,
-        entrada_sin_salida: entradasIndicadorConcedidas.length > 0 && (incluirSalidasConcedidas || salidasConcedidas.length === 0),
+        entrada_sin_salida: entradasIndicadorConcedidas.length > 0 && (incluirSalidasConcedidas || salidasConcedidasDia.length === 0),
         salida_sin_entrada: salidasConcedidas.length > 0 && entradasConcedidas.length === 0,
         puerta_equivocada: salidasConcedidasPuertaIncorrecta.length > 0
       };
@@ -199,7 +208,10 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         hora_entrada_indicador: entradasIndicadorConcedidas[0] ? horaLocal(entradasIndicadorConcedidas[0].fecha_evento) : null,
         puerta_entrada_indicador: entradasIndicadorConcedidas[0]?.puerta_nombre || entradasIndicadorConcedidas[0]?.puerta_codigo || "",
         resultado_entrada_indicador: textoResultadoEvento(entradasIndicadorConcedidas[0]),
-        entrada_indicador_tiene_salida: entradasIndicadorConcedidas.length > 0 && salidasConcedidas.length > 0,
+        entrada_indicador_tiene_salida: entradasIndicadorConcedidas.length > 0 && salidasConcedidasDia.length > 0,
+        hora_salida_indicador: salidasConcedidasDia[0] ? horaLocal(salidasConcedidasDia[0].fecha_evento) : null,
+        puerta_salida_indicador: salidasConcedidasDia[0]?.puerta_nombre || salidasConcedidasDia[0]?.puerta_codigo || "",
+        resultado_salida_indicador: textoResultadoEvento(salidasConcedidasDia[0]),
         hora_salida: primeraSalida ? horaLocal(primeraSalida.fecha_evento) : null,
         puerta_salida: primeraSalida?.puerta_nombre || primeraSalida?.puerta_codigo || "",
         resultado_salida: textoResultadoEvento(primeraSalida),
