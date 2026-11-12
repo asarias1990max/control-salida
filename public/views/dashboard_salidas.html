@@ -137,6 +137,9 @@
     text-transform: uppercase;
     white-space: nowrap;
   }
+  .ds-dashboard .ds-sort-button { display:inline-flex; align-items:center; gap:.35rem; padding:0; border:0; background:transparent; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; white-space:nowrap; cursor:pointer; }
+  .ds-dashboard .ds-sort-button:hover { color:#2449a5; }
+  .ds-dashboard .ds-sort-button span { color:#2449a5; font-size:.85rem; }
   .ds-dashboard .table tbody td {
     padding: .42rem .7rem;
     color: #344258;
@@ -293,7 +296,7 @@
     <div class="table-responsive ds-table-wrap">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Apellidos</th><th>Nombres</th><th>Curso</th><th>Entrada</th><th>Salida</th><th>Nivel de acceso</th><th>Horario permitido</th><th>Pto. acceso permitido</th></tr>
+          <tr><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(0)">Apellidos <span id="dsSortIcon0">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(1)">Nombres <span id="dsSortIcon1">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(2)">Curso <span id="dsSortIcon2">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(3)">Entrada <span id="dsSortIcon3">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(4)">Salida <span id="dsSortIcon4">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(5)">Nivel de acceso <span id="dsSortIcon5">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(6)">Horario permitido <span id="dsSortIcon6">↕</span></button></th><th><button type="button" class="ds-sort-button" onclick="ordenarResumenDiarioSalidasHik(7)">Pto. acceso permitido <span id="dsSortIcon7">↕</span></button></th></tr>
         </thead>
         <tbody id="dsTablaResumenDiario"><tr><td colspan="8" class="text-center ds-empty">Selecciona una fecha y consulta.</td></tr></tbody>
       </table>
