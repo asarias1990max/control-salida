@@ -51,6 +51,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
     const horaInicio = String(req.query.hora_inicio || "00:00").trim();
     const horaFin = String(req.query.hora_fin || "23:59").trim();
     const modo = String(req.query.modo || "horario").trim() === "todos" ? "todos" : "horario";
+    const incluirSalidasConcedidas = String(req.query.incluirSalidasConcedidas || "") === "1";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ ok: false, message: "La fecha debe tener formato AAAA-MM-DD." });
     if (modo === "horario" && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(horaInicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaFin) || horaInicio > horaFin)) {
       return res.status(400).json({ ok: false, message: "Selecciona un rango horario válido." });
@@ -110,8 +111,11 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       if (resultado) return resultado;
       return evento.tipo_evento || evento.datos_originales?.eventName || evento.datos_originales?.eventTypeName || "Evento registrado; resultado no informado";
     };
-    // Convención de puertas del colegio: CE = entrada y CS = salida.
+    // Convención general de puertas del colegio: CE = entrada y CS = salida.
     const esEntrada = evento => /^(ce|entrada|entry|ingreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
+    // Puertas exactas que alimentan exclusivamente el indicador "Con entrada y sin salida".
+    const puertasEntradaIndicador = new Set(["ce1", "ce2", "ce3", "cet1"]);
+    const esEntradaIndicador = evento => [evento.puerta_nombre, evento.puerta_codigo].some(puerta => puertasEntradaIndicador.has(normalizar(puerta)));
     const esSalida = evento => /^(cs|salida|exit|egreso)/.test(normalizar(evento.puerta_nombre || evento.puerta_codigo));
     const configs = configuracionResult.data || [];
     const configPorNivel = new Map(configs.map(x => [String(x.nivel_acceso || "").trim().toLowerCase(), x]));
@@ -143,6 +147,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       const entradas = eventos.filter(esEntrada);
       const salidas = eventos.filter(esSalida);
       const entradasConcedidas = entradas.filter(resultadoConcedido);
+      const entradasIndicadorConcedidas = eventos.filter(esEntradaIndicador).filter(resultadoConcedido);
       const salidasConcedidas = salidas.filter(resultadoConcedido);
       const entradasError = entradas.filter(e => !resultadoConcedido(e));
       const salidasError = salidas.filter(e => !resultadoConcedido(e));
@@ -174,7 +179,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         error_entrada: entradasError.length > 0 && entradasConcedidas.length === 0,
         error_salida: salidasError.length > 0 && salidasConcedidas.length === 0,
         fuera_horario: salidasFueraHorario.length > 0,
-        entrada_sin_salida: entradasConcedidas.length > 0 && salidasConcedidas.length === 0,
+        entrada_sin_salida: entradasIndicadorConcedidas.length > 0 && (incluirSalidasConcedidas || salidasConcedidas.length === 0),
         salida_sin_entrada: salidasConcedidas.length > 0 && entradasConcedidas.length === 0,
         puerta_equivocada: salidasConcedidasPuertaIncorrecta.length > 0
       };
@@ -191,6 +196,10 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
         hora_entrada: primeraEntrada ? horaLocal(primeraEntrada.fecha_evento) : null,
         puerta_entrada: primeraEntrada?.puerta_nombre || primeraEntrada?.puerta_codigo || "",
         resultado_entrada: textoResultadoEvento(primeraEntrada),
+        hora_entrada_indicador: entradasIndicadorConcedidas[0] ? horaLocal(entradasIndicadorConcedidas[0].fecha_evento) : null,
+        puerta_entrada_indicador: entradasIndicadorConcedidas[0]?.puerta_nombre || entradasIndicadorConcedidas[0]?.puerta_codigo || "",
+        resultado_entrada_indicador: textoResultadoEvento(entradasIndicadorConcedidas[0]),
+        entrada_indicador_tiene_salida: entradasIndicadorConcedidas.length > 0 && salidasConcedidas.length > 0,
         hora_salida: primeraSalida ? horaLocal(primeraSalida.fecha_evento) : null,
         puerta_salida: primeraSalida?.puerta_nombre || primeraSalida?.puerta_codigo || "",
         resultado_salida: textoResultadoEvento(primeraSalida),
@@ -218,6 +227,7 @@ router.get("/dashboard-resumen-diario", async (req, res) => {
       ok: true,
       fecha,
       modo,
+      incluirSalidasConcedidas,
       horaInicio: modo === "todos" ? null : horaInicio,
       horaFin: modo === "todos" ? null : horaFin,
       totalEstudiantes: total,
