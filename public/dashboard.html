@@ -661,7 +661,7 @@
         row.nombres || "",
         row.curso || "—",
         textoEventoAcceso(seleccionado === "entrada_y_salida" ? row.puerta_entrada_completa : seleccionado === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, seleccionado === "entrada_y_salida" ? row.hora_entrada_completa : seleccionado === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, seleccionado === "entrada_y_salida" ? row.resultado_entrada_completa : seleccionado === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
-        textoEventoAcceso(seleccionado === "entrada_y_salida" ? row.puerta_salida_completa : seleccionado === "entrada_sin_salida" ? row.puerta_salida_indicador : row.puerta_salida, seleccionado === "entrada_y_salida" ? row.hora_salida_completa : seleccionado === "entrada_sin_salida" ? row.hora_salida_indicador : row.hora_salida, seleccionado === "entrada_y_salida" ? row.resultado_salida_completa : seleccionado === "entrada_sin_salida" ? row.resultado_salida_indicador : row.resultado_salida),
+        textoEventoAcceso(seleccionado === "entrada_y_salida" ? row.puerta_salida_completa : (seleccionado === "entrada_sin_salida" || seleccionado === "salida_sin_entrada") ? row.puerta_salida_indicador : row.puerta_salida, seleccionado === "entrada_y_salida" ? row.hora_salida_completa : (seleccionado === "entrada_sin_salida" || seleccionado === "salida_sin_entrada") ? row.hora_salida_indicador : row.hora_salida, seleccionado === "entrada_y_salida" ? row.resultado_salida_completa : (seleccionado === "entrada_sin_salida" || seleccionado === "salida_sin_entrada") ? row.resultado_salida_indicador : row.resultado_salida),
         (row.niveles || []).join(", ") || "—",
         row.configuracion?.horario || "—",
         row.configuracion?.puertas || "—"
@@ -850,6 +850,7 @@
         const indicadoresVisiblesDashboard = new Set([
           "con entrada y salida",
           "con entrada y sin salida",
+          "con salida y sin entrada",
           "ausentes (sin entrada ni salida)"
         ]);
         indicadoresDiariosData = todosIndicadoresDiariosData.filter(item =>
