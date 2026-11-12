@@ -2,6 +2,9 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import dns from "node:dns/promises";
+import net from "node:net";
+import https from "node:https";
 
 import authRoutes from "./routes/authRoutes.js";
 import importacionesRoutes from "./routes/importacionesRoutes.js";
@@ -39,7 +42,63 @@ app.use(express.static(path.join(__dirname, "public")));
 ========================= */
 app.use("/api", authRoutes);
 // Todas las APIs de la aplicación requieren una sesión válida, salvo las rutas públicas de auth.
+
 app.use("/api", exigirSesion);
+
+// Diagnóstico temporal de conectividad HikCentral: solo disponible para el administrador principal.
+app.get("/api/diagnostico-hikcentral", async (req, res) => {
+  if (req.usuarioSesion?.email?.toLowerCase() !== "asarias@einstein.k12.ec") {
+    return res.status(403).json({ ok: false, message: "No autorizado." });
+  }
+  let host;
+  try {
+    if (!process.env.HIK_BASE_URL) throw new Error("HIK_BASE_URL no está configurada.");
+    host = new URL(process.env.HIK_BASE_URL).hostname;
+    const inicioDns = Date.now();
+    const direcciones = await dns.lookup(host, { all: true, verbatim: true });
+    const tiempoDnsMs = Date.now() - inicioDns;
+    const ip = direcciones[0]?.address;
+    if (!ip) throw new Error("DNS no devolvió direcciones IP.");
+
+    const tcp = await new Promise(resolve => {
+      const inicio = Date.now();
+      const socket = net.createConnection({ host: ip, port: 443 });
+      let terminado = false;
+      const finalizar = resultado => {
+        if (terminado) return;
+        terminado = true;
+        socket.destroy();
+        resolve({ ...resultado, tiempoMs: Date.now() - inicio });
+      };
+      socket.setTimeout(8000);
+      socket.once("connect", () => finalizar({ ok: true }));
+      socket.once("timeout", () => finalizar({ ok: false, error: "TIMEOUT" }));
+      socket.once("error", error => finalizar({ ok: false, error: error.code || error.message }));
+    });
+
+    const httpsResultado = await new Promise(resolve => {
+      const inicio = Date.now();
+      const request = https.request({ hostname: host, path: "/", method: "GET", timeout: 8000, headers: { "User-Agent": "Control-Salidas-HikCentral-Diagnostic/1.0" } }, response => {
+        response.resume();
+        resolve({ ok: true, statusCode: response.statusCode, tiempoMs: Date.now() - inicio });
+      });
+      request.once("timeout", () => request.destroy(Object.assign(new Error("TIMEOUT"), { code: "TIMEOUT" })));
+      request.once("error", error => resolve({ ok: false, error: error.code || error.message, tiempoMs: Date.now() - inicio }));
+      request.end();
+    });
+
+    return res.json({
+      ok: true,
+      host,
+      dns: { ok: true, direcciones, tiempoMs: tiempoDnsMs },
+      tcp443: tcp,
+      https: httpsResultado,
+      nota: "Prueba de red sin enviar credenciales ni realizar consultas Artemis."
+    });
+  } catch (error) {
+    return res.status(502).json({ ok: false, host: host || null, error: error.code || error.message });
+  }
+});
 app.use("/api", (req, res, next) => {
   const usuario = req.usuarioSesion;
   if (!usuario) return next();
