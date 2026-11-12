@@ -1,10 +1,9 @@
 import crypto from "crypto";
+import { supabase } from "../config/supabaseClient.js";
 
-// Sesiones de proceso con expiración deslizante. El identificador nunca se guarda
-// en localStorage: viaja únicamente en una cookie HttpOnly.
+// Las sesiones se guardan en Supabase para compartirlas entre instancias serverless de Vercel.
 const DURACION_INACTIVIDAD_MS = 15 * 60 * 1000;
 const NOMBRE_COOKIE = "control_salida_sid";
-const sesiones = new Map();
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -43,81 +42,117 @@ export function limpiarCookieSesion(res) {
   });
 }
 
-export function crearSesion(res, usuario) {
+export async function crearSesion(res, usuario) {
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
-  const ahora = Date.now();
+  const ahora = new Date();
+  const vence = new Date(ahora.getTime() + DURACION_INACTIVIDAD_MS);
 
-  sesiones.set(tokenHash, {
-    usuario,
-    creadaEn: ahora,
-    ultimaActividad: ahora
+  const { error } = await supabase.from("app_sessions").insert({
+    token_hash: tokenHash,
+    user_data: usuario,
+    created_at: ahora.toISOString(),
+    last_activity: ahora.toISOString(),
+    expires_at: vence.toISOString()
   });
+  if (error) {
+    console.error("No se pudo guardar la sesión persistente:", error.message);
+    throw new Error("No se pudo crear la sesión. Intenta nuevamente.");
+  }
 
   configurarCookie(res, token);
 }
 
-export function obtenerSesion(req) {
+export async function obtenerSesion(req) {
   const token = leerToken(req);
   if (!token) return null;
 
   const tokenHash = hashToken(token);
-  const sesion = sesiones.get(tokenHash);
-  if (!sesion) return null;
+  const { data, error } = await supabase
+    .from("app_sessions")
+    .select("user_data, expires_at")
+    .eq("token_hash", tokenHash)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
 
-  if (Date.now() - sesion.ultimaActividad >= DURACION_INACTIVIDAD_MS) {
-    sesiones.delete(tokenHash);
+  if (error) {
+    console.error("Error consultando la sesión persistente:", error.message);
+    throw new Error("No se pudo validar la sesión.");
+  }
+  if (!data) return null;
+  return { tokenHash, usuario: data.user_data };
+}
+
+export async function exigirSesion(req, res, next) {
+  try {
+    const resultado = await obtenerSesion(req);
+    if (!resultado) {
+      limpiarCookieSesion(res);
+      return res.status(401).json({
+        ok: false,
+        code: "SESSION_EXPIRED",
+        message: "Tu sesión expiró. Inicia sesión nuevamente."
+      });
+    }
+    req.usuarioSesion = resultado.usuario;
+    return next();
+  } catch (error) {
+    return res.status(503).json({ ok: false, code: "SESSION_STORE_UNAVAILABLE", message: "No se pudo validar la sesión. Intenta nuevamente." });
+  }
+}
+
+// Solo la actividad explícita del navegador renueva los 15 minutos de inactividad.
+export async function registrarActividad(req, res, next) {
+  try {
+    const token = leerToken(req);
+    if (!token) {
+      limpiarCookieSesion(res);
+      return res.status(401).json({ ok: false, code: "SESSION_EXPIRED", message: "Tu sesión expiró. Inicia sesión nuevamente." });
+    }
+
+    const tokenHash = hashToken(token);
+    const ahora = new Date();
+    const vence = new Date(ahora.getTime() + DURACION_INACTIVIDAD_MS);
+    const { data, error } = await supabase
+      .from("app_sessions")
+      .update({ last_activity: ahora.toISOString(), expires_at: vence.toISOString() })
+      .eq("token_hash", tokenHash)
+      .gt("expires_at", ahora.toISOString())
+      .select("user_data")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      limpiarCookieSesion(res);
+      return res.status(401).json({ ok: false, code: "SESSION_EXPIRED", message: "Tu sesión expiró. Inicia sesión nuevamente." });
+    }
+
+    configurarCookie(res, token);
+    req.usuarioSesion = data.user_data;
+    return next();
+  } catch (error) {
+    console.error("Error renovando la sesión persistente:", error.message);
+    return res.status(503).json({ ok: false, code: "SESSION_STORE_UNAVAILABLE", message: "No se pudo renovar la sesión. Intenta nuevamente." });
+  }
+}
+
+export async function renovarSesionActual(req, res) {
+  const resultado = await obtenerSesion(req);
+  if (!resultado) {
+    limpiarCookieSesion(res);
     return null;
   }
-
-  return { tokenHash, sesion };
+  return resultado.usuario;
 }
 
-export function exigirSesion(req, res, next) {
-  const resultado = obtenerSesion(req);
-  if (!resultado) {
-    limpiarCookieSesion(res);
-    return res.status(401).json({
-      ok: false,
-      code: "SESSION_EXPIRED",
-      message: "Tu sesión expiró. Inicia sesión nuevamente."
-    });
-  }
-
-  req.usuarioSesion = resultado.sesion.usuario;
-  next();
-}
-
-// Solo este middleware renueva la sesión: se ejecuta desde el pulso explícito
-// de actividad del navegador, nunca por consultas automáticas del dashboard.
-export function registrarActividad(req, res, next) {
-  const resultado = obtenerSesion(req);
-  if (!resultado) {
-    limpiarCookieSesion(res);
-    return res.status(401).json({
-      ok: false,
-      code: "SESSION_EXPIRED",
-      message: "Tu sesión expiró. Inicia sesión nuevamente."
-    });
-  }
-
-  resultado.sesion.ultimaActividad = Date.now();
-  configurarCookie(res, leerToken(req));
-  req.usuarioSesion = resultado.sesion.usuario;
-  next();
-}
-
-export function renovarSesionActual(req, res) {
-  const resultado = obtenerSesion(req);
-  if (!resultado) {
-    limpiarCookieSesion(res);
-    return null;
-  }
-  return resultado.sesion.usuario;
-}
-
-export function cerrarSesion(req, res) {
+export async function cerrarSesion(req, res) {
   const token = leerToken(req);
-  if (token) sesiones.delete(hashToken(token));
-  limpiarCookieSesion(res);
+  try {
+    if (token) {
+      const { error } = await supabase.from("app_sessions").delete().eq("token_hash", hashToken(token));
+      if (error) throw error;
+    }
+  } finally {
+    limpiarCookieSesion(res);
+  }
 }
