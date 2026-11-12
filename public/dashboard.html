@@ -652,6 +652,33 @@
       if (siguiente) siguiente.disabled = resumenPaginaActual >= totalPaginas || !total;
     }
 
+    let resumenOrdenColumna = -1;
+    let resumenOrdenDireccion = 1;
+
+    function valoresOrdenResumenHik(row, seleccionado) {
+      return [
+        row.apellidos || "",
+        row.nombres || "",
+        row.curso || "—",
+        textoEventoAcceso(seleccionado === "entrada_y_salida" ? row.puerta_entrada_completa : seleccionado === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, seleccionado === "entrada_y_salida" ? row.hora_entrada_completa : seleccionado === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, seleccionado === "entrada_y_salida" ? row.resultado_entrada_completa : seleccionado === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
+        textoEventoAcceso(seleccionado === "entrada_y_salida" ? row.puerta_salida_completa : seleccionado === "entrada_sin_salida" ? row.puerta_salida_indicador : row.puerta_salida, seleccionado === "entrada_y_salida" ? row.hora_salida_completa : seleccionado === "entrada_sin_salida" ? row.hora_salida_indicador : row.hora_salida, seleccionado === "entrada_y_salida" ? row.resultado_salida_completa : seleccionado === "entrada_sin_salida" ? row.resultado_salida_indicador : row.resultado_salida),
+        (row.niveles || []).join(", ") || "—",
+        row.configuracion?.horario || "—",
+        row.configuracion?.puertas || "—"
+      ];
+    }
+
+    function ordenarResumenDiarioSalidasHik(columna) {
+      if (resumenOrdenColumna === columna) resumenOrdenDireccion *= -1;
+      else { resumenOrdenColumna = columna; resumenOrdenDireccion = 1; }
+      resumenPaginaActual = 1;
+      for (let i = 0; i < 8; i++) {
+        const icono = document.getElementById("dsSortIcon" + i);
+        if (icono) icono.textContent = i !== resumenOrdenColumna ? "↕" : resumenOrdenDireccion === 1 ? "↑" : "↓";
+      }
+      filtrarResumenDiarioSalidasHik();
+    }
+
     function filtrarResumenDiarioSalidasHik(key) {
       const filtro = document.getElementById("dsFiltroIndicador");
       if (filtro && typeof key === "string") filtro.value = key;
@@ -662,9 +689,20 @@
       const itemIndicador = indicadoresDiariosData.find(item => item.key === seleccionado);
       const opcionesEntrada = document.getElementById("dsOpcionesEntradaSinSalida");
       if (opcionesEntrada) opcionesEntrada.hidden = seleccionado !== "entrada_sin_salida";
-      const rows = seleccionado
+      let rows = seleccionado
         ? resumenDiarioSalidasData.filter(row => row.flags && row.flags[seleccionado])
         : [];
+      if (resumenOrdenColumna >= 0) {
+        const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
+        rows = rows.slice().sort((a, b) => {
+          const valorA = String(valoresOrdenResumenHik(a, seleccionado)[resumenOrdenColumna] ?? "").trim();
+          const valorB = String(valoresOrdenResumenHik(b, seleccionado)[resumenOrdenColumna] ?? "").trim();
+          const vacioA = !valorA || valorA === "—";
+          const vacioB = !valorB || valorB === "—";
+          if (vacioA || vacioB) return vacioA === vacioB ? 0 : vacioA ? 1 : -1;
+          return collator.compare(valorA, valorB) * resumenOrdenDireccion;
+        });
+      }
       cuerpo.replaceChildren();
       if (!seleccionado) {
         cuerpo.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Selecciona un indicador en «VER LISTADO DE» para ver los estudiantes.</td></tr>';
