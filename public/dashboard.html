@@ -303,7 +303,7 @@
       window.location.href = "/";
     }
 
-    document.getElementById("userName").innerText = "👤 " + usuario.nombre;
+    document.getElementById("userName").innerText = usuario.nombre || usuario.email || "Usuario";
 
     function alternarMenuLateral() {
       if (window.matchMedia("(max-width: 768px)").matches) {
@@ -1776,7 +1776,7 @@ async function cargarEstudiantesLower() {
         usuario = result.user;
         localStorage.setItem("usuario", JSON.stringify(usuario));
         const nombre = document.getElementById("userName");
-        if (nombre) nombre.innerText = "👤 " + (usuario.nombre || usuario.email || "Usuario");
+        if (nombre) nombre.innerText = usuario.nombre || usuario.email || "Usuario";
         return true;
       } catch (error) {
         localStorage.removeItem("usuario");
