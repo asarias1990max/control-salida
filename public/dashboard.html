@@ -616,6 +616,7 @@
 
     let resumenDiarioSalidasData = [];
     let indicadoresDiariosData = [];
+    let ultimoIndicadorSeleccionado = "";
 
     function textoEventoAcceso(puerta, hora, resultado) {
       if (!puerta && !hora && !resultado) return "Sin registro";
@@ -683,12 +684,24 @@
       const filtro = document.getElementById("dsFiltroIndicador");
       if (filtro && typeof key === "string") filtro.value = key;
       const seleccionado = filtro?.value || "";
+      const cambioIndicador = seleccionado !== ultimoIndicadorSeleccionado;
+      if (cambioIndicador) {
+        const incluirConSalida = document.getElementById("dsIncluirConSalida");
+        if (incluirConSalida) incluirConSalida.checked = false;
+        ultimoIndicadorSeleccionado = seleccionado;
+      }
       const cuerpo = document.getElementById("dsTablaResumenDiario");
       const conteo = document.getElementById("dsConteoFiltro");
       if (!cuerpo) return;
       const itemIndicador = indicadoresDiariosData.find(item => item.key === seleccionado);
       const opcionesEntrada = document.getElementById("dsOpcionesEntradaSinSalida");
-      if (opcionesEntrada) opcionesEntrada.hidden = seleccionado !== "entrada_sin_salida";
+      const incluirConSalida = document.getElementById("dsIncluirConSalida");
+      const permiteIncluirSalidas = seleccionado === "entrada_sin_salida";
+      if (opcionesEntrada) opcionesEntrada.hidden = !permiteIncluirSalidas;
+      if (incluirConSalida) {
+        incluirConSalida.disabled = !permiteIncluirSalidas;
+        if (!permiteIncluirSalidas) incluirConSalida.checked = false;
+      }
       let rows = seleccionado
         ? resumenDiarioSalidasData.filter(row => row.flags && row.flags[seleccionado])
         : [];
