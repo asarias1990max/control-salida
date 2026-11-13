@@ -781,10 +781,11 @@
         row.apellidos || "",
         row.nombres || "",
         row.curso || "—",
+        row.paralelo || "—",
         textoEventoAcceso(indicadorKey === "entrada_y_salida" ? row.puerta_entrada_completa : indicadorKey === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, indicadorKey === "entrada_y_salida" ? row.hora_entrada_completa : indicadorKey === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, indicadorKey === "entrada_y_salida" ? row.resultado_entrada_completa : indicadorKey === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
         textoEventoAcceso(indicadorKey === "entrada_y_salida" ? row.puerta_salida_completa : (indicadorKey === "entrada_sin_salida" || indicadorKey === "salida_sin_entrada") ? row.puerta_salida_indicador : row.puerta_salida, indicadorKey === "entrada_y_salida" ? row.hora_salida_completa : (indicadorKey === "entrada_sin_salida" || indicadorKey === "salida_sin_entrada") ? row.hora_salida_indicador : row.hora_salida, indicadorKey === "entrada_y_salida" ? row.resultado_salida_completa : (indicadorKey === "entrada_sin_salida" || indicadorKey === "salida_sin_entrada") ? row.resultado_salida_indicador : row.resultado_salida)
       ];
-      const encabezados = ["Apellidos", "Nombres", "Curso", "Entrada", "Salida"];
+      const encabezados = ["Apellidos", "Nombres", "Curso", "Paralelo", "Entrada", "Salida"];
       const tabla = "<table border=\"1\"><thead><tr>" + encabezados.map(t => "<th>" + escapar(t) + "</th>").join("") + "</tr></thead><tbody>" + filas.map(row => "<tr>" + valoresFila(row).map(v => "<td>" + escapar(v) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
       const html = "<html><head><meta charset=\"UTF-8\"></head><body><h2>REPORTE DE ENTRADA Y SALIDA COLEGIO EINSTEIN</h2><p>Indicador: " + escapar(item.indicador) + "</p><p>Fecha: " + escapar(fecha) + " | Horario: " + escapar(horaInicio + " - " + horaFin) + " | Estudiantes: " + filas.length + " | Porcentaje: " + Number(item.porcentaje || 0).toFixed(2) + "%</p>" + tabla + "<p>Departamento de sistemas AS-FS</p></body></html>";
       const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
