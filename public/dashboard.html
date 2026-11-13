@@ -768,6 +768,34 @@
       actualizarPaginadorResumenHik(rows.length);
     }
 
+    function descargarExcelIndicadorSalidasHik(indicadorKey) {
+      const item = indicadoresDiariosData.find(indicador => indicador.key === indicadorKey);
+      if (!item) { alert("No se encontró el indicador seleccionado."); return; }
+      const filas = resumenDiarioSalidasData.filter(row => row.flags && row.flags[indicadorKey]);
+      if (!filas.length) { alert("No hay estudiantes para descargar en este indicador."); return; }
+      const fecha = document.getElementById("dsFechaResumen")?.value || "";
+      const horaInicio = modoConsultaSalidasHik === "todos" ? "00:00" : (document.getElementById("dsHoraInicioResumen")?.value || "07:20");
+      const horaFin = modoConsultaSalidasHik === "todos" ? "23:59" : (document.getElementById("dsHoraFinResumen")?.value || "08:30");
+      const escapar = valor => String(valor ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const valoresFila = row => [
+        row.apellidos || "",
+        row.nombres || "",
+        row.curso || "—",
+        textoEventoAcceso(indicadorKey === "entrada_y_salida" ? row.puerta_entrada_completa : indicadorKey === "entrada_sin_salida" ? row.puerta_entrada_indicador : row.puerta_entrada, indicadorKey === "entrada_y_salida" ? row.hora_entrada_completa : indicadorKey === "entrada_sin_salida" ? row.hora_entrada_indicador : row.hora_entrada, indicadorKey === "entrada_y_salida" ? row.resultado_entrada_completa : indicadorKey === "entrada_sin_salida" ? row.resultado_entrada_indicador : row.resultado_entrada),
+        textoEventoAcceso(indicadorKey === "entrada_y_salida" ? row.puerta_salida_completa : (indicadorKey === "entrada_sin_salida" || indicadorKey === "salida_sin_entrada") ? row.puerta_salida_indicador : row.puerta_salida, indicadorKey === "entrada_y_salida" ? row.hora_salida_completa : (indicadorKey === "entrada_sin_salida" || indicadorKey === "salida_sin_entrada") ? row.hora_salida_indicador : row.hora_salida, indicadorKey === "entrada_y_salida" ? row.resultado_salida_completa : (indicadorKey === "entrada_sin_salida" || indicadorKey === "salida_sin_entrada") ? row.resultado_salida_indicador : row.resultado_salida)
+      ];
+      const encabezados = ["Apellidos", "Nombres", "Curso", "Entrada", "Salida"];
+      const tabla = "<table border=\"1\"><thead><tr>" + encabezados.map(t => "<th>" + escapar(t) + "</th>").join("") + "</tr></thead><tbody>" + filas.map(row => "<tr>" + valoresFila(row).map(v => "<td>" + escapar(v) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
+      const html = "<html><head><meta charset=\"UTF-8\"></head><body><h2>REPORTE DE ENTRADA Y SALIDA COLEGIO EINSTEIN</h2><p>Indicador: " + escapar(item.indicador) + "</p><p>Fecha: " + escapar(fecha) + " | Horario: " + escapar(horaInicio + " - " + horaFin) + " | Estudiantes: " + filas.length + " | Porcentaje: " + Number(item.porcentaje || 0).toFixed(2) + "%</p>" + tabla + "<p>Departamento de sistemas AS-FS</p></body></html>";
+      const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      const safeKey = String(item.key).replace(/[^a-z0-9_-]/gi, "_");
+      enlace.href = url;
+      enlace.download = "salidas_" + safeKey + "_" + (fecha || "consulta") + ".xls";
+      document.body.appendChild(enlace); enlace.click(); enlace.remove();
+      URL.revokeObjectURL(url);
+    }
     function descargarPDFIndicadorSalidasHik(indicadorKey) {
       const item = indicadoresDiariosData.find(indicador => indicador.key === indicadorKey);
       if (!item) { alert("No se encontró el indicador seleccionado."); return; }
@@ -893,7 +921,12 @@
           botonPdf.className = "btn btn-sm btn-outline-danger"; botonPdf.title = "Descargar PDF de " + item.indicador;
           botonPdf.setAttribute("aria-label", botonPdf.title); botonPdf.innerHTML = '<i class="bi bi-file-earmark-pdf"></i>';
           botonPdf.addEventListener("click", event => { event.stopPropagation(); descargarPDFIndicadorSalidasHik(item.key); });
-          tdPdf.append(botonPdf); tr.append(tdPdf);
+          tdPdf.append(botonPdf);
+          const botonExcel = document.createElement("button"); botonExcel.type = "button";
+          botonExcel.className = "btn btn-sm btn-outline-success ms-1"; botonExcel.title = "Descargar Excel de " + item.indicador;
+          botonExcel.setAttribute("aria-label", botonExcel.title); botonExcel.innerHTML = '<i class="bi bi-file-earmark-excel"></i>';
+          botonExcel.addEventListener("click", event => { event.stopPropagation(); descargarExcelIndicadorSalidasHik(item.key); });
+          tdPdf.append(botonExcel); tr.append(tdPdf);
           tr.style.cursor = "pointer"; tr.title = "Seleccionar este indicador";
           tr.addEventListener("click", () => {
             filtrarResumenDiarioSalidasHik(item.key);
