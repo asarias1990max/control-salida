@@ -33,9 +33,9 @@ function validarDatos(body, crear = false) {
 }
 
 export async function listarUsuarios(req, res) {
-  const { data, error } = await supabase.from("usuarios").select("id,nombre,email,rol,permisos_menu,estado,created_at").order("nombre");
+  const { data, error } = await supabase.from("usuarios").select("id,nombre,email,rol,permisos_menu,estado,created_at,password").order("nombre");
   if (error) return res.status(500).json({ ok: false, message: "No se pudo cargar la lista de usuarios." });
-  return res.json({ ok: true, data });
+  return res.json({ ok: true, data: data.map(({ password, ...usuario }) => ({ ...usuario, password_configurada: Boolean(password) })) });
 }
 
 export async function crearUsuario(req, res) {
