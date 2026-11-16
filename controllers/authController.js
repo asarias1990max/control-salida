@@ -134,6 +134,11 @@ export async function completarActivacion(req, res) {
     }
     if (password !== confirmacion) return res.status(400).json({ ok: false, message: "Las contraseñas no coinciden." });
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const { data: tokenActual, error: errorToken } = await supabase.from("password_setup_tokens")
+      .select("token_hash,usuarios(estado)").eq("token_hash", tokenHash).is("used_at", null).gt("expires_at", new Date().toISOString()).maybeSingle();
+    if (errorToken || !tokenActual || tokenActual.usuarios?.estado !== "activo") {
+      return res.status(400).json({ ok: false, message: "El enlace ya fue utilizado, venció o la cuenta está inactiva. Solicita uno nuevo al administrador." });
+    }
     const passwordHash = await crearHashPassword(password);
     const { data, error } = await supabase.rpc("complete_password_setup", {
       p_token_hash: tokenHash, p_password_hash: passwordHash
