@@ -2473,7 +2473,28 @@ function filtrarUsuarios(){const q=(document.getElementById("usuariosBuscar")?.v
 function abrirFormularioUsuario(u=null){document.getElementById("usuarioId").value=u?.id||"";document.getElementById("usuarioNombre").value=u?.nombre||"";document.getElementById("usuarioEmail").value=u?.email||"";document.getElementById("usuarioEmail").disabled=!!u;document.getElementById("usuarioRol").value=u?.rol||"dashboard_salidas";document.querySelectorAll("#usuarioPermisos input").forEach(c=>c.checked=(u?.permisos_menu||[]).includes(c.value));document.getElementById("usuarioModalTitulo").textContent=u?"Editar usuario":"Nuevo usuario";cambiarPerfilUsuario();bootstrap.Modal.getOrCreateInstance(document.getElementById("modalUsuario")).show();}
 function editarUsuarioSistema(id){const u=listaUsuariosSistema.find(x=>x.id===id);if(u)abrirFormularioUsuario(u);}
 function cambiarPerfilUsuario(){const rol=document.getElementById("usuarioRol").value;const wrap=document.getElementById("usuarioPermisosWrap");const checks=[...document.querySelectorAll("#usuarioPermisos input")];const presets={admin:["salida_lower","salida_middle","salida_high","importar_data","reporte_salidas","dashboard_salidas","usuarios"],dashboard_salidas:["dashboard_salidas"],operador_salidas:["salida_lower","salida_middle","salida_high"]};const correoSesion=String(usuario.email||"").toLowerCase();const esAdminMaestro=correoSesion==="asarias@einstein.k12.ec";const opcionAdmin=document.querySelector("#usuarioRol option[value=admin]");if(opcionAdmin)opcionAdmin.disabled=!esAdminMaestro;if(rol==="personalizado"){wrap.style.display="block";checks.forEach(c=>{c.disabled=c.value==="usuarios"&&!esAdminMaestro;});return;}wrap.style.display="block";checks.forEach(c=>{c.checked=(presets[rol]||[]).includes(c.value);c.disabled=true;});}
-async function guardarUsuario(){const id=document.getElementById("usuarioId").value;const rol=document.getElementById("usuarioRol").value;const permisos=[...document.querySelectorAll("#usuarioPermisos input:checked")].map(c=>c.value);const payload={nombre:document.getElementById("usuarioNombre").value,email:document.getElementById("usuarioEmail").value,rol,permisos_menu:permisos};const btn=document.getElementById("usuarioGuardar");btn.disabled=true;try{const r=await fetch(id?"/api/usuarios/"+id:"/api/usuarios",{method:id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"No se pudo guardar.");bootstrap.Modal.getInstance(document.getElementById("modalUsuario")).hide();mostrarMensajeUsuarios("Usuario guardado correctamente.","success");await cargarUsuariosSistema();}catch(e){mostrarMensajeUsuarios(e.message,"danger");}finally{btn.disabled=false;}}
+async function generarEnlaceActivacionUsuario(id){
+  try{const r=await fetch('/api/usuarios/'+encodeURIComponent(id)+'/enlace-activacion',{method:'POST'});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'No se pudo generar el enlace.');
+    try{await navigator.clipboard.writeText(d.activationUrl);mostrarMensajeUsuarios('Enlace copiado. Compártelo con '+d.nombre+'. Vence en 24 horas.','success');}
+    catch{prompt('Copia y comparte este enlace con '+d.nombre+'. Vence en 24 horas:',d.activationUrl);}
+  }catch(e){mostrarMensajeUsuarios(e.message,'danger');}
+}
+async function guardarUsuario(){
+  const id=document.getElementById('usuarioId').value;const rol=document.getElementById('usuarioRol').value;
+  const permisos=[...document.querySelectorAll('#usuarioPermisos input:checked')].map(c=>c.value);
+  const payload={nombre:document.getElementById('usuarioNombre').value,email:document.getElementById('usuarioEmail').value,rol,permisos_menu:permisos};
+  const btn=document.getElementById('usuarioGuardar');btn.disabled=true;
+  try{const r=await fetch(id?'/api/usuarios/'+id:'/api/usuarios',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'No se pudo guardar.');
+    bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
+    if(!id){const a=await fetch('/api/usuarios/'+encodeURIComponent(d.data.id)+'/enlace-activacion',{method:'POST'});const x=await a.json();
+      if(!a.ok||!x.ok)throw new Error('Usuario creado, pero no se pudo generar el enlace: '+(x.message||'Error desconocido.'));
+      await cargarUsuariosSistema();
+      try{await navigator.clipboard.writeText(x.activationUrl);mostrarMensajeUsuarios('Usuario creado. Enlace copiado; compártelo con '+x.nombre+'. Vence en 24 horas.','success');}
+      catch{prompt('Usuario creado. Copia y comparte este enlace con '+x.nombre+'. Vence en 24 horas:',x.activationUrl);}
+    }else{mostrarMensajeUsuarios('Usuario actualizado correctamente.','success');await cargarUsuariosSistema();}
+  }catch(e){mostrarMensajeUsuarios(e.message,'danger');await cargarUsuariosSistema();}finally{btn.disabled=false;}
+}
 async function alternarEstadoUsuario(id,estado){const u=listaUsuariosSistema.find(x=>x.id===id);if(!u)return;if(!confirm((estado==="inactivo"?"¿Desactivar":"¿Activar")+" el acceso de "+u.nombre+"?"))return;try{const r=await fetch("/api/usuarios/"+id+"/estado",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({estado})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"No se pudo cambiar el estado.");mostrarMensajeUsuarios("Estado actualizado correctamente.","success");await cargarUsuariosSistema();}catch(e){mostrarMensajeUsuarios(e.message,"danger");}}
 function mostrarMensajeUsuarios(msg,tipo){const el=document.getElementById("usuariosMensaje");if(el)el.innerHTML='<div class="alert alert-'+tipo+' py-2 mb-0">'+escapeHtmlUsuarios(msg)+'</div>';}
 cargarUsuariosSistema();
