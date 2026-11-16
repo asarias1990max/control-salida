@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { supabase } from "../config/supabaseClient.js";
 
 const PERMISOS_VALIDOS = ["salida_lower", "salida_middle", "salida_high", "importar_data", "reporte_salidas", "dashboard_salidas", "usuarios"];
@@ -92,4 +93,38 @@ export async function cambiarEstadoUsuario(req, res) {
     .select("id,nombre,email,rol,permisos_menu,estado,created_at").single();
   if (error) return res.status(500).json({ ok: false, message: "No se pudo cambiar el estado." });
   return res.json({ ok: true, data });
+}
+
+
+export async function generarEnlaceActivacion(req, res) {
+  try {
+    const id = String(req.params.id || "");
+    const { data: usuario, error: errorUsuario } = await supabase.from("usuarios")
+      .select("id,nombre,email,estado,password").eq("id", id).maybeSingle();
+    if (errorUsuario || !usuario) return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
+    if (usuario.estado !== "activo") return res.status(400).json({ ok: false, message: "Activa la cuenta antes de generar el enlace." });
+    if (usuario.password) return res.status(400).json({ ok: false, message: "Este usuario ya configuró su contraseña." });
+
+    const token = crypto.randomBytes(32).toString("base64url");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const { error: revokeError } = await supabase.from("password_setup_tokens")
+      .delete().eq("user_id", id).is("used_at", null);
+    if (revokeError) throw revokeError;
+    const { error } = await supabase.from("password_setup_tokens").insert({
+      token_hash: tokenHash, user_id: id, expires_at: expiresAt
+    });
+    if (error) throw error;
+    const baseUrl = String(process.env.APP_BASE_URL || (req.protocol + "://" + req.get("host"))).replace(/\/$/, "");
+    return res.json({
+      ok: true,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      expiresAt,
+      activationUrl: baseUrl + "/activar-cuenta?token=" + encodeURIComponent(token)
+    });
+  } catch (error) {
+    console.error("Error generando enlace de activación:", error.message);
+    return res.status(500).json({ ok: false, message: "No se pudo generar el enlace de activación." });
+  }
 }
