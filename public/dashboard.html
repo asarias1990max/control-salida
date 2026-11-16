@@ -2487,10 +2487,14 @@ function abrirFormularioUsuario(u=null){document.getElementById("usuarioId").val
 function editarUsuarioSistema(id){const u=listaUsuariosSistema.find(x=>x.id===id);if(u)abrirFormularioUsuario(u);}
 function cambiarPerfilUsuario(){const rol=document.getElementById("usuarioRol").value;const wrap=document.getElementById("usuarioPermisosWrap");const checks=[...document.querySelectorAll("#usuarioPermisos input")];const presets={admin:["salida_lower","salida_middle","salida_high","importar_data","reporte_salidas","dashboard_salidas","usuarios"],dashboard_salidas:["dashboard_salidas"],operador_salidas:["salida_lower","salida_middle","salida_high"]};const correoSesion=String(usuario.email||"").toLowerCase();const esAdminMaestro=correoSesion==="asarias@einstein.k12.ec";const opcionAdmin=document.querySelector("#usuarioRol option[value=admin]");if(opcionAdmin)opcionAdmin.disabled=!esAdminMaestro;if(rol==="personalizado"){wrap.style.display="block";checks.forEach(c=>{c.disabled=c.value==="usuarios"&&!esAdminMaestro;});return;}wrap.style.display="block";checks.forEach(c=>{c.checked=(presets[rol]||[]).includes(c.value);c.disabled=true;});}
 async function generarEnlaceActivacionUsuario(id){
-  try{const r=await fetch('/api/usuarios/'+encodeURIComponent(id)+'/enlace-activacion',{method:'POST'});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'No se pudo generar el enlace.');
-    try{await navigator.clipboard.writeText(d.activationUrl);mostrarMensajeUsuarios('Enlace copiado. Compártelo con '+d.nombre+'. Vence en 24 horas.','success');}
-    catch{prompt('Copia y comparte este enlace con '+d.nombre+'. Vence en 24 horas:',d.activationUrl);}
-  }catch(e){mostrarMensajeUsuarios(e.message,'danger');}
+  try{
+    const r=await fetch('/api/usuarios/'+encodeURIComponent(id)+'/enlace-activacion',{method:'POST'});
+    const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'No se pudo generar el enlace.');
+    const accion=d.tipo==="recuperacion"?"recuperar la contraseña":"activar su cuenta";
+    const mensaje="Enlace para "+accion+" copiado. Compártelo con "+d.nombre+". Vence en 24 horas.";
+    try{await navigator.clipboard.writeText(d.activationUrl);mostrarMensajeUsuarios(mensaje,"success");}
+    catch{prompt("Copia y comparte este enlace para que "+d.nombre+" pueda "+accion+". Vence en 24 horas:",d.activationUrl);}
+  }catch(e){mostrarMensajeUsuarios(e.message,"danger");}
 }
 async function guardarUsuario(){
   const id=document.getElementById('usuarioId').value;const rol=document.getElementById('usuarioRol').value;
