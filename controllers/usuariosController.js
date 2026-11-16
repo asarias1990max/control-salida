@@ -121,7 +121,7 @@ export async function generarEnlaceActivacion(req, res) {
       nombre: usuario.nombre,
       email: usuario.email,
       expiresAt,
-      activationUrl: baseUrl + "/activar-cuenta?token=" + encodeURIComponent(token)
+      activationUrl: baseUrl + "/activar-cuenta.html?token=" + encodeURIComponent(token)
     });
   } catch (error) {
     console.error("Error generando enlace de activación:", error.message);
