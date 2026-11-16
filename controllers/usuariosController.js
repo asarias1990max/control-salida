@@ -103,7 +103,6 @@ export async function generarEnlaceActivacion(req, res) {
       .select("id,nombre,email,estado,password").eq("id", id).maybeSingle();
     if (errorUsuario || !usuario) return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
     if (usuario.estado !== "activo") return res.status(400).json({ ok: false, message: "Activa la cuenta antes de generar el enlace." });
-    if (usuario.password) return res.status(400).json({ ok: false, message: "Este usuario ya configuró su contraseña." });
 
     const token = crypto.randomBytes(32).toString("base64url");
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
@@ -121,7 +120,8 @@ export async function generarEnlaceActivacion(req, res) {
       nombre: usuario.nombre,
       email: usuario.email,
       expiresAt,
-      activationUrl: baseUrl + "/activar-cuenta.html?token=" + encodeURIComponent(token)
+      activationUrl: baseUrl + "/activar-cuenta.html?token=" + encodeURIComponent(token),
+      tipo: usuario.password ? "recuperacion" : "activacion"
     });
   } catch (error) {
     console.error("Error generando enlace de activación:", error.message);
