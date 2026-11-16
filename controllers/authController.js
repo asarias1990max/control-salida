@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+import { supabase } from "../config/supabaseClient.js";
 import { getUserByCredentials, setUserPassword, createOrUpdateGoogleUser } from "../models/userModel.js";
 import { crearSesion } from "../services/sessionService.js";
 import { crearHashPassword, verificarPassword } from "../services/passwordService.js";
@@ -101,4 +103,46 @@ export async function googleLogin(req, res) {
 
 export async function getGoogleConfig(req, res) {
   return res.json({ ok: true, clientId: process.env.GOOGLE_CLIENT_ID || "" });
+}
+
+
+export async function validarEnlaceActivacion(req, res) {
+  try {
+    const token = String(req.body?.token || "");
+    if (!/^[A-Za-z0-9_-]{40,60}$/.test(token)) return res.status(400).json({ ok: false, message: "El enlace no es válido o ha vencido." });
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const { data, error } = await supabase.from("password_setup_tokens")
+      .select("expires_at,used_at,user_id,usuarios(nombre,email)")
+      .eq("token_hash", tokenHash).maybeSingle();
+    if (error || !data || data.used_at || new Date(data.expires_at).getTime() <= Date.now()) {
+      return res.status(400).json({ ok: false, message: "El enlace no es válido, ya fue utilizado o ha vencido." });
+    }
+    return res.json({ ok: true, nombre: data.usuarios?.nombre || "", email: data.usuarios?.email || "" });
+  } catch (error) {
+    console.error("Error validando enlace de activación:", error.message);
+    return res.status(500).json({ ok: false, message: "No se pudo validar el enlace." });
+  }
+}
+
+export async function completarActivacion(req, res) {
+  try {
+    const token = String(req.body?.token || "");
+    const { password, confirmacion } = req.body || {};
+    if (!/^[A-Za-z0-9_-]{40,60}$/.test(token)) return res.status(400).json({ ok: false, message: "El enlace no es válido o ha vencido." });
+    if (typeof password !== "string" || password.length < 12 || password.length > 128) {
+      return res.status(400).json({ ok: false, message: "La contraseña debe tener entre 12 y 128 caracteres." });
+    }
+    if (password !== confirmacion) return res.status(400).json({ ok: false, message: "Las contraseñas no coinciden." });
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const passwordHash = await crearHashPassword(password);
+    const { data, error } = await supabase.rpc("complete_password_setup", {
+      p_token_hash: tokenHash, p_password_hash: passwordHash
+    });
+    if (error) throw error;
+    if (data !== true) return res.status(400).json({ ok: false, message: "El enlace ya fue utilizado, venció o la cuenta está inactiva. Solicita uno nuevo al administrador." });
+    return res.json({ ok: true, message: "Contraseña configurada. Ya puedes ingresar al sistema." });
+  } catch (error) {
+    console.error("Error completando activación:", error.message);
+    return res.status(500).json({ ok: false, message: "No se pudo guardar la contraseña. Intenta nuevamente." });
+  }
 }
