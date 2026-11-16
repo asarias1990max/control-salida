@@ -1,10 +1,12 @@
 import express from "express";
-import { login, establecerPassword, googleLogin, getGoogleConfig } from "../controllers/authController.js";
+import { login, establecerPassword, googleLogin, getGoogleConfig, validarEnlaceActivacion, completarActivacion } from "../controllers/authController.js";
 import { exigirSesion, registrarActividad, renovarSesionActual, cerrarSesion } from "../services/sessionService.js";
 
 const router = express.Router();
 
 router.post("/login", login);
+router.post("/auth/password-setup/validate", validarEnlaceActivacion);
+router.post("/auth/password-setup/complete", completarActivacion);
 router.post("/auth/google", googleLogin);
 router.get("/google/config", getGoogleConfig);
 router.post("/auth/password", exigirSesion, establecerPassword);
